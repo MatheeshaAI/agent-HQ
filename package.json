@@ -13,6 +13,10 @@
   },
   "license": "UNLICENSED",
   "devDependencies": {
+    "@fontsource/inter": "^5.1.0",
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.16.3",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -21,21 +25,17 @@
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "lucide-react": "^0.460.0",
     "playwright-core": "^1.49.0",
+    "postprocessing": "^6.36.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
-    "@fontsource/inter": "^5.1.0",
-    "@react-three/drei": "^9.117.3",
-    "@react-three/fiber": "^8.17.10",
-    "@react-three/postprocessing": "^2.16.3",
-    "lucide-react": "^0.460.0",
-    "postprocessing": "^6.36.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "three": "^0.170.0",
     "zod": "^3.25.76"
   },
   "private": true,
@@ -44,11 +44,11 @@
     "productName": "Agent HQ",
     "files": [
       "out/**",
-      "resources/**",
       "package.json"
     ],
     "directories": {
       "output": "dist"
     }
-  }
+  },
+  "author": "Matheesha Sarathchandra"
 }

@@ -4,3 +4,4 @@ dist/
 .shots/
 *.log
 *.tsbuildinfo
+*.zip
