@@ -31,6 +31,14 @@ npm run preview    # run the production build
 npm run dist       # unpacked app in dist/ (electron-builder --dir)
 ```
 
+### Windows installer
+
+```bash
+npx electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false -c.nsis.oneClick=false -c.nsis.allowToChangeInstallationDirectory=true -c.nsis.perMachine=false
+```
+
+This writes `dist/AgentHQ-Setup-0.1.0.exe`. On Linux the build needs Wine (`wine`, `wine64`, `wine32:i386`). The installer installs for the current user only (no admin rights), lets you pick the folder, and adds Start-menu and Desktop shortcuts. It is not code-signed, so Windows SmartScreen shows "Windows protected your PC": choose **More info**, then **Run anyway**.
+
 Then open **Settings** and:
 1. Paste your **Claude API key**. It is stored on your computer, encrypted with your OS keychain where available, and only ever sent to the Claude API. You can also set `ANTHROPIC_API_KEY` in your environment instead.
 2. Optionally choose your **knowledge folder**. The default is `Documents/Agent HQ Knowledge`.
