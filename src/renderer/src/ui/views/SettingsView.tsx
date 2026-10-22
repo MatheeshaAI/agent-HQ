@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Check, Cpu, FolderCog, FolderOpen, KeyRound, Save, Trash2, UserRound } from 'lucide-react'
-import type { SettingsUpdate, SettingsView as Settings } from '@shared/types'
+import { Check, Cpu, FolderCog, FolderOpen, KeyRound, LogIn, Save, Trash2, UserRound } from 'lucide-react'
+import type { ModelOption, ProviderId, SettingsUpdate, SettingsView as Settings } from '@shared/types'
 import { useSnapshot } from '../../state/snapshot'
 import { Button } from '../common/Button'
 import { ViewFrame } from './ViewFrame'
@@ -34,8 +34,7 @@ export function SettingsView(): JSX.Element {
     <ViewFrame title="Settings" subtitle="Where your wiki lives and how the agents think">
       <div className={styles.settings}>
         <KnowledgeFolder settings={settings} />
-        <ApiKey settings={settings} />
-        <Profile settings={settings} />
+        <ProviderSettings settings={settings} />
       </div>
     </ViewFrame>
   )
@@ -178,5 +177,111 @@ function Profile({ settings }: { settings: Settings }): JSX.Element {
       </form>
       <StatusLine status={status} />
     </Section>
+  )
+}
+
+const PROVIDERS: { id: ProviderId; name: string; mode: 'key' | 'cli' | 'acp' }[] = [
+  { id: 'anthropic', name: 'Anthropic API', mode: 'key' },
+  { id: 'claude-code', name: 'Claude subscription (Claude Code)', mode: 'cli' },
+  { id: 'openai', name: 'OpenAI API', mode: 'key' },
+  { id: 'openrouter', name: 'OpenRouter', mode: 'key' },
+  { id: 'codex', name: 'Codex via ACP', mode: 'acp' },
+  { id: 'opencode', name: 'OpenCode via ACP', mode: 'acp' },
+  { id: 'antigravity', name: 'Antigravity CLI via ACP', mode: 'acp' },
+  { id: 'kilocode', name: 'Kilo Code via ACP', mode: 'acp' },
+  { id: 'acp', name: 'Custom ACP agent', mode: 'acp' }
+]
+
+function ProviderSettings({ settings }: { settings: Settings }): JSX.Element {
+  const [key, setKey] = useState('')
+  const [providerId, setProviderId] = useState<ProviderId>(settings.providerId)
+  const [baseUrl, setBaseUrl] = useState(settings.baseUrl)
+  const [command, setCommand] = useState(settings.command)
+  const [args, setArgs] = useState(settings.args)
+  const [model, setModel] = useState(settings.model)
+  const [name, setName] = useState(settings.userName)
+  const [models, setModels] = useState<ModelOption[]>([])
+  const [loadError, setLoadError] = useState('')
+  const [save, status, busy] = useSave()
+  useEffect(() => setProviderId(settings.providerId), [settings.providerId])
+  useEffect(() => setBaseUrl(settings.baseUrl), [settings.baseUrl])
+  useEffect(() => setCommand(settings.command), [settings.command])
+  useEffect(() => setArgs(settings.args), [settings.args])
+  useEffect(() => setModel(settings.model), [settings.model])
+  useEffect(() => setName(settings.userName), [settings.userName])
+
+  const selected = PROVIDERS.find((item) => item.id === providerId)!
+  const changeProvider = (id: ProviderId): void => {
+    setProviderId(id)
+    setModels([])
+    setModel('')
+    if (id === 'codex') { setCommand('npx'); setArgs('["-y", "@agentclientprotocol/codex-acp"]') }
+    else if (id === 'opencode') { setCommand('opencode'); setArgs('["acp"]') }
+    else if (id !== settings.providerId) { setCommand(''); setArgs('') }
+  }
+  const submit = async (event: FormEvent): Promise<void> => {
+    event.preventDefault()
+    const update: SettingsUpdate = { providerId, model: model.trim(), baseUrl, command, args, userName: name.trim() }
+    if (key.trim()) update.apiKey = key.trim()
+    if (await save(update, 'Provider settings saved')) setKey('')
+  }
+  const loadModels = async (): Promise<void> => {
+    setLoadError('')
+    try {
+      const update: SettingsUpdate = { providerId, baseUrl, command, args }
+      if (key.trim()) update.apiKey = key.trim()
+      if (!(await save(update, 'Provider connection saved'))) return
+      setKey('')
+      setModels(await window.api.listModels())
+    }
+    catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not list models') }
+  }
+
+  return (
+    <>
+      <Section icon={<Cpu size={18} />} title="AI provider" description="Choose the provider for every agent. API credentials are stored separately per provider and encrypted when secure storage is available.">
+        <form className={styles.fieldGrid} onSubmit={submit}>
+          <label className={styles.fieldLabel}><span>Provider</span>
+            <select className={styles.field} value={providerId} onChange={(event) => changeProvider(event.target.value as ProviderId)}>
+              {PROVIDERS.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
+            </select>
+          </label>
+          {selected.mode === 'key' && <label className={styles.fieldLabel}><span><KeyRound size={13} /> API key {settings.configuredProviders.includes(providerId) ? '(saved)' : ''}</span>
+            <input className={styles.field} type="password" value={key} onChange={(event) => setKey(event.target.value)} placeholder={settings.configuredProviders.includes(providerId) ? 'Leave blank to keep saved key' : 'Paste API key'} autoComplete="off" spellCheck={false} />
+          </label>}
+          {(providerId === 'openai' || providerId === 'openrouter') && <label className={styles.fieldLabel}><span>API base URL (optional)</span>
+            <input className={styles.field} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={providerId === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1'} />
+          </label>}
+          {(selected.mode === 'acp' || selected.mode === 'cli') && <>
+            <label className={styles.fieldLabel}><span>Agent executable</span>
+              <input className={styles.field} value={command} onChange={(event) => setCommand(event.target.value)} placeholder={providerId === 'claude-code' ? 'claude' : 'ACP-compatible command'} />
+            </label>
+            {selected.mode === 'acp' && <label className={styles.fieldLabel}><span>Arguments (JSON array or quoted list)</span>
+              <input className={styles.field} value={args} onChange={(event) => setArgs(event.target.value)} placeholder={'["acp"]'} />
+            </label>}
+            {providerId === 'claude-code' && <>
+              <p className={styles.settingsText}>Sign in with your Claude account through Claude Code. Agent HQ uses that local login for subscription access.</p>
+              <Button type="button" variant="ghost" icon={LogIn} onClick={() => window.api.openClaudeLogin()}>Sign in to Claude</Button>
+            </>}
+            {selected.mode === 'acp' && <p className={styles.settingsText}>The command must speak ACP over stdio. Configure the installed compatible agent and its arguments here.</p>}
+          </>}
+          <label className={styles.fieldLabel}><span><Cpu size={13} /> Model ID</span>
+            <input className={styles.field} list="agent-hq-models" value={model} onChange={(event) => setModel(event.target.value)} spellCheck={false} />
+            <datalist id="agent-hq-models">{models.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</datalist>
+          </label>
+          <label className={styles.fieldLabel}><span><UserRound size={13} /> Your name</span>
+            <input className={styles.field} value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <div className={styles.buttonRow}>
+            <Button type="button" variant="ghost" icon={Cpu} onClick={loadModels} busy={busy}>Load models</Button>
+            <Button type="submit" variant="primary" icon={Save} busy={busy} disabled={!model.trim()}>Save provider</Button>
+            {settings.configuredProviders.includes(providerId) && selected.mode === 'key' && <Button type="button" variant="danger" icon={Trash2} disabled={busy} onClick={() => save({ providerId, apiKey: '' }, 'Provider key removed')}>Clear key</Button>}
+          </div>
+          {loadError && <div className={styles.noticeError}>{loadError}</div>}
+          {selected.mode === 'acp' && <p className={styles.settingsText}>Model discovery depends on the ACP agent. Enter a model ID manually when the agent has no model list.</p>}
+          <StatusLine status={status} />
+        </form>
+      </Section>
+    </>
   )
 }

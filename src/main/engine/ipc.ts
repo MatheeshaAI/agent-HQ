@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { spawn } from 'node:child_process'
 import { IPC, type SettingsUpdate } from '@shared/types'
 import type { Engine } from './engine'
 
@@ -22,6 +23,15 @@ export function registerIpc(ready: Promise<Engine>): void {
   handle(IPC.readPage, (engine, slug: string) => engine.readPage(asString(slug, 'page')))
   handle(IPC.getSettings, (engine) => engine.getSettings())
   handle(IPC.saveSettings, (engine, update: SettingsUpdate) => engine.saveSettings(asSettingsUpdate(update)))
+  handle(IPC.listModels, (engine) => engine.listModels())
+  ipcMain.handle(IPC.openClaudeLogin, async () => {
+    if (process.platform !== 'win32') throw new Error('Open a terminal and run claude to sign in on this platform')
+    await new Promise<void>((resolve, reject) => {
+      const terminal = spawn('powershell.exe', ['-NoExit', '-Command', 'claude'], { detached: true, stdio: 'ignore', windowsHide: false })
+      terminal.once('spawn', () => { terminal.unref(); resolve() })
+      terminal.once('error', reject)
+    })
+  })
   handle(IPC.openPath, async (engine, path: string) => {
     const target = asString(path, 'path')
     if (!engine.isInsideKnowledge(target)) throw new Error('Only files in the knowledge folder can be opened')
@@ -67,9 +77,15 @@ function asStringList(value: unknown): string[] {
 function asSettingsUpdate(value: unknown): SettingsUpdate {
   if (typeof value !== 'object' || value === null) throw new Error('Expected settings')
   const update: SettingsUpdate = {}
-  for (const key of ['knowledgeDir', 'apiKey', 'model', 'userName'] as const) {
+  for (const key of ['knowledgeDir', 'apiKey', 'model', 'userName', 'baseUrl', 'command', 'args'] as const) {
     const field = (value as Record<string, unknown>)[key]
     if (field !== undefined) update[key] = asString(field, key)
+  }
+  const provider = (value as Record<string, unknown>).providerId
+  if (provider !== undefined) {
+    const providers = ['anthropic', 'claude-code', 'openai', 'openrouter', 'codex', 'opencode', 'antigravity', 'kilocode', 'acp']
+    if (typeof provider !== 'string' || !providers.includes(provider)) throw new Error('Unknown model provider')
+    update.providerId = provider as SettingsUpdate['providerId']
   }
   return update
 }

@@ -38,6 +38,8 @@ const api: AgentHqApi = {
 
   getSettings: () => invoke(IPC.getSettings),
   saveSettings: (update) => invoke(IPC.saveSettings, update),
+  listModels: () => invoke(IPC.listModels),
+  openClaudeLogin: () => invoke(IPC.openClaudeLogin),
   chooseKnowledgeDir: () => invoke(IPC.chooseKnowledgeDir),
   openPath: (path) => invoke(IPC.openPath, path),
 

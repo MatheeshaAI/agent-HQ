@@ -11,8 +11,10 @@ import type {
   WikiPageContent,
   WikiPageMeta
 } from '@shared/types'
+import type { ModelOption } from '@shared/types'
 import { KnowledgeBase, type FolderChange } from './knowledgeBase'
-import { createClaude, MISSING_KEY_MESSAGE, type Llm } from './llm/claude'
+import type { Llm } from './llm/claude'
+import { createProvider, listProviderModels } from './llm/providers'
 import { askWiki } from './pipeline/ask'
 import { IngestQueue } from './pipeline/ingest'
 import { Janitor, janitorSummary } from './pipeline/janitor'
@@ -52,7 +54,14 @@ export class Engine {
     this.now = options.now ?? Date.now
     this.settings = new SettingsStore(options.dataDir, options.defaults, options.codec)
     this.state = new EngineState(this.settings.view(), options.push, this.now)
-    this.llm = createClaude(() => ({ apiKey: this.settings.resolvedApiKey(), model: this.settings.model() }))
+    this.llm = createProvider(() => ({
+      providerId: this.settings.view().providerId,
+      apiKey: this.settings.resolvedApiKey(),
+      baseUrl: this.settings.view().baseUrl,
+      command: this.settings.view().command,
+      args: this.settings.view().args,
+      model: this.settings.model()
+    }))
     this.janitor = new Janitor(this.state, this.llm, () => this.settings.resolvedApiKey() !== null, this.now)
     this.queue = new IngestQueue({
       state: this.state,
@@ -131,6 +140,11 @@ export class Engine {
     return this.settings.view()
   }
 
+  listModels(): Promise<ModelOption[]> {
+    const view = this.settings.view()
+    return listProviderModels({ providerId: view.providerId, apiKey: this.settings.resolvedApiKey(), baseUrl: view.baseUrl, command: view.command, args: view.args, model: view.model })
+  }
+
   async saveSettings(update: SettingsUpdate): Promise<SettingsView> {
     const result = await this.settings.save(update)
     this.state.setSettings(result.view)
@@ -142,7 +156,7 @@ export class Engine {
       )
     }
     if (result.knowledgeDirChanged) await this.openKnowledge(result.view.knowledgeDir)
-    else if (result.apiKeyChanged && result.view.apiKeySet) await this.retryMissingKeyFailures()
+    else if ((result.apiKeyChanged || result.providerChanged) && (result.view.apiKeySet || result.view.providerId === 'claude-code' || result.view.command)) await this.retryMissingKeyFailures()
     return result.view
   }
 
@@ -302,12 +316,12 @@ export class Engine {
     }
   }
 
-  /** After a key is added, sources that failed only for lack of one are tried again. */
+  /** Re-try failed sources when a usable provider or provider configuration is added. */
   private async retryMissingKeyFailures(): Promise<void> {
     const kb = this.kb
     if (!kb) return
     for (const source of kb.sources.list().reverse()) {
-      if (source.status === 'failed' && source.error === MISSING_KEY_MESSAGE) await this.retrySource(source.id)
+      if (source.status === 'failed') await this.retrySource(source.id)
     }
   }
 

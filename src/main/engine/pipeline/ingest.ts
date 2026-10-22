@@ -266,9 +266,7 @@ export class IngestQueue {
       kind: 'janitor',
       started: { title: 'Janitor checking', detail: plural(written.length, 'updated page') },
       finished: () => ({ title: 'Janitor completed', detail: janitorSummary(state.getJanitor()) }),
-      run: async (job) => {
-        await janitor.check(item.kb, { touched: written.map((p) => p.slug) }, job)
-      }
+      run: async (job) => { await janitor.check(item.kb, { touched: written.map((page) => page.slug) }, job) }
     })
   }
 }

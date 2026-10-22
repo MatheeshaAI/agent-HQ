@@ -319,7 +319,7 @@ function draw(
   ctx.font = `500 ${fontSize}px Inter, system-ui, sans-serif`
   for (const node of sim.nodes) {
     const lit = isLit(node)
-    const show = (hover && lit) || (searching && lit) || view.k > 1.3 || node.degree >= Math.max(3, maxDegree * 0.4)
+    const show = (hover !== null && lit) || (searching && lit) || view.k > 1.3 || node.degree >= Math.max(3, maxDegree * 0.4)
     if (!show) continue
     ctx.fillStyle = lit ? COLORS.label : COLORS.labelDim
     ctx.fillText(node.title, node.x, node.y + radius(node) + 3 / view.k)

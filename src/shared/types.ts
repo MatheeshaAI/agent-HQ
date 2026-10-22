@@ -116,14 +116,30 @@ export interface JanitorReport {
 export interface SettingsView {
   knowledgeDir: string
   apiKeySet: boolean
+  configuredProviders: ProviderId[]
+  providerId: ProviderId
+  baseUrl: string
+  command: string
+  args: string
   model: string
   userName: string
+}
+
+export type ProviderId = 'anthropic' | 'claude-code' | 'openai' | 'openrouter' | 'codex' | 'opencode' | 'antigravity' | 'kilocode' | 'acp'
+
+export interface ModelOption {
+  id: string
+  name: string
 }
 
 export interface SettingsUpdate {
   knowledgeDir?: string
   /** Empty string clears the stored key */
   apiKey?: string
+  providerId?: ProviderId
+  baseUrl?: string
+  command?: string
+  args?: string
   model?: string
   userName?: string
 }
@@ -178,6 +194,8 @@ export interface AgentHqApi {
 
   getSettings(): Promise<SettingsView>
   saveSettings(update: SettingsUpdate): Promise<SettingsView>
+  listModels(): Promise<ModelOption[]>
+  openClaudeLogin(): Promise<void>
   chooseKnowledgeDir(): Promise<string | null>
   openPath(path: string): Promise<void>
 
@@ -203,6 +221,8 @@ export const IPC = {
   readPage: 'hq:readPage',
   getSettings: 'hq:getSettings',
   saveSettings: 'hq:saveSettings',
+  listModels: 'hq:listModels',
+  openClaudeLogin: 'hq:openClaudeLogin',
   chooseKnowledgeDir: 'hq:chooseKnowledgeDir',
   openPath: 'hq:openPath',
   winMinimize: 'hq:win:minimize',

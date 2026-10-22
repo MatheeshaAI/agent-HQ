@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import type { SettingsUpdate, SettingsView } from '@shared/types'
+import type { ProviderId, SettingsUpdate, SettingsView } from '@shared/types'
 import { writeFileAtomic } from './util/fsx'
 
 const DEFAULT_MODEL = 'claude-opus-5-5'
@@ -23,6 +23,11 @@ interface SettingsFile {
   model?: string
   userName?: string
   apiKey?: StoredKey
+  apiKeys?: Partial<Record<ProviderId, StoredKey>>
+  providerId?: ProviderId
+  baseUrl?: string
+  command?: string
+  args?: string
 }
 
 export interface SettingsDefaults {
@@ -35,6 +40,7 @@ export interface SaveResult {
   view: SettingsView
   knowledgeDirChanged: boolean
   apiKeyChanged: boolean
+  providerChanged: boolean
   /** True when a key had to be stored without encryption */
   storedPlain: boolean
 }
@@ -42,7 +48,7 @@ export interface SaveResult {
 /** settings.json in the data folder. The API key never leaves this module except to the LLM layer. */
 export class SettingsStore {
   private data: SettingsFile = {}
-  private apiKey: string | null = null
+  private apiKeys: Partial<Record<ProviderId, string>> = {}
 
   constructor(
     private readonly dataDir: string,
@@ -62,25 +68,33 @@ export class SettingsStore {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error(`settings.json could not be read: ${(error as Error).message}`)
       this.data = {}
     }
-    this.apiKey = null
-    const stored = this.data.apiKey
-    if (!stored?.value) return null
-    if (!stored.encrypted) {
-      this.apiKey = stored.value
-      return null
+    this.apiKeys = {}
+    const storedKeys = { ...(this.data.apiKeys ?? {}) }
+    if (this.data.apiKey?.value && !storedKeys.anthropic) storedKeys.anthropic = this.data.apiKey
+    this.data.apiKeys = storedKeys
+    for (const [provider, stored] of Object.entries(storedKeys) as Array<[ProviderId, StoredKey]>) {
+      if (!stored?.value) continue
+      try {
+        this.apiKeys[provider] = stored.encrypted ? this.codec.decrypt(stored.value) : stored.value
+      } catch {
+        return `The saved ${provider} credential could not be decrypted on this computer; add it again in Settings`
+      }
     }
-    try {
-      this.apiKey = this.codec.decrypt(stored.value)
-      return null
-    } catch {
-      return 'The saved Claude API key could not be decrypted on this computer; add it again in Settings'
-    }
+    return null
   }
 
   view(): SettingsView {
     return {
       knowledgeDir: this.knowledgeDir(),
       apiKeySet: this.resolvedApiKey() !== null,
+      configuredProviders: [...new Set<ProviderId>([
+        ...(Object.keys(this.apiKeys) as ProviderId[]),
+        ...(this.defaults.envApiKey?.trim() ? ['anthropic'] : [])
+      ])],
+      providerId: this.data.providerId ?? 'anthropic',
+      baseUrl: this.data.baseUrl ?? '',
+      command: this.data.command ?? '',
+      args: this.data.args ?? '',
       model: this.model(),
       userName: this.data.userName?.trim() || DEFAULT_USER_NAME
     }
@@ -96,11 +110,14 @@ export class SettingsStore {
 
   /** The saved key, or the environment's key when none is saved. */
   resolvedApiKey(): string | null {
-    return this.apiKey || this.defaults.envApiKey?.trim() || null
+    return this.apiKeys[this.providerId()] || (this.providerId() === 'anthropic' ? this.defaults.envApiKey?.trim() : undefined) || null
   }
+
+  private providerId(): ProviderId { return this.data.providerId ?? 'anthropic' }
 
   async save(update: SettingsUpdate): Promise<SaveResult> {
     const previousDir = this.knowledgeDir()
+    const previousProviderConfig = [this.data.providerId ?? 'anthropic', this.data.baseUrl ?? '', this.data.command ?? '', this.data.args ?? '', this.data.model ?? ''].join('\0')
     let apiKeyChanged = false
     let storedPlain = false
 
@@ -110,20 +127,29 @@ export class SettingsStore {
       this.data.knowledgeDir = dir ? resolve(dir) : undefined
     }
     if (update.model !== undefined) this.data.model = update.model.trim() || undefined
+    if (update.providerId !== undefined) this.data.providerId = update.providerId
+    if (update.baseUrl !== undefined) this.data.baseUrl = update.baseUrl.trim() || undefined
+    if (update.command !== undefined) this.data.command = update.command.trim() || undefined
+    if (update.args !== undefined) this.data.args = update.args.trim() || undefined
     if (update.userName !== undefined) this.data.userName = update.userName.trim() || undefined
     if (update.apiKey !== undefined) {
       const key = update.apiKey.trim()
-      apiKeyChanged = key !== (this.apiKey ?? '')
-      this.apiKey = key || null
-      if (!key) delete this.data.apiKey
-      else if (this.codec.available()) this.data.apiKey = { encrypted: true, value: this.codec.encrypt(key) }
+      const provider = this.providerId()
+      apiKeyChanged = key !== (this.apiKeys[provider] ?? '')
+      if (key) this.apiKeys[provider] = key
+      else delete this.apiKeys[provider]
+      this.data.apiKeys = { ...this.data.apiKeys }
+      if (!key) delete this.data.apiKeys[provider]
+      else if (this.codec.available()) this.data.apiKeys[provider] = { encrypted: true, value: this.codec.encrypt(key) }
       else {
-        this.data.apiKey = { encrypted: false, value: key }
+        this.data.apiKeys[provider] = { encrypted: false, value: key }
         storedPlain = true
       }
+      delete this.data.apiKey
     }
 
     await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
-    return { view: this.view(), knowledgeDirChanged: this.knowledgeDir() !== previousDir, apiKeyChanged, storedPlain }
+    const providerConfig = [this.data.providerId ?? 'anthropic', this.data.baseUrl ?? '', this.data.command ?? '', this.data.args ?? '', this.data.model ?? ''].join('\0')
+    return { view: this.view(), knowledgeDirChanged: this.knowledgeDir() !== previousDir, apiKeyChanged, providerChanged: providerConfig !== previousProviderConfig, storedPlain }
   }
 }

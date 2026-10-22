@@ -242,8 +242,11 @@ function toRecord(slug: string, path: string, markdown: string, fallbackUpdatedA
   }
 }
 
-function addNeighbour(map: Map<string, Set<string>>, from: string, to: string): void {
-  let set = map.get(from)
-  if (!set) map.set(from, (set = new Set()))
-  set.add(to)
+function addNeighbour(neighbours: Map<string, Set<string>>, slug: string, neighbour: string): void {
+  let linked = neighbours.get(slug)
+  if (!linked) {
+    linked = new Set<string>()
+    neighbours.set(slug, linked)
+  }
+  linked.add(neighbour)
 }
