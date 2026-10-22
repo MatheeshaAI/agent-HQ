@@ -116,7 +116,15 @@ export default function Bookshelf({ at, rotation, width, height, bays = 1, lamp,
 
   return (
     <group position={[at[0], 0, at[1]]} rotation={[0, rotation, 0]}>
-      <Box size={[width, height, 0.02]} at={[0, height / 2, 0.01]} material={mat.darkWood} />
+      {/* Warm back-lit back panel, plus a soft fill that lights the book spines like the reference's cases. */}
+      <Box size={[width, height, 0.02]} at={[0, height / 2, 0.01]} material={mat.shelfGlow} />
+      <pointLight
+        position={[0, height * 0.55, depth + 0.45]}
+        color="#ffb36b"
+        intensity={2.2 * height}
+        distance={2.6}
+        decay={2}
+      />
       {[-1, 1].map((s) => (
         <Box
           key={s}

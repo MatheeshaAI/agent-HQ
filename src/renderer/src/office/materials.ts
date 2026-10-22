@@ -137,7 +137,7 @@ export function useOfficeMaterials(): OfficeMaterials {
       bookBlue: std({ color: '#2b4a6f', roughness: 0.7 }),
       bookTan: std({ color: '#b9b2a2', roughness: 0.7 }),
       glass: new THREE.MeshPhysicalMaterial({
-        color: '#7f9fb8',
+        color: '#a3a7aa',
         roughness: 0.03,
         metalness: 0,
         transparent: true,

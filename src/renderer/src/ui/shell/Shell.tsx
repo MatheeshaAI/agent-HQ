@@ -36,7 +36,7 @@ export function Shell(): JSX.Element {
       <Sidebar />
       <main className={styles.center}>
         <div className={styles.officeLayer} aria-hidden={view !== 'office'} data-hidden={view !== 'office'}>
-          <OfficeView />
+          <OfficeView active={view === 'office'} />
         </div>
         {Overlay && <Overlay key={view} />}
       </main>

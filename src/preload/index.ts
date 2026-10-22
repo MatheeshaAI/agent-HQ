@@ -1,8 +1,21 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { IPC, type AgentHqApi, type AppSnapshot } from '@shared/types'
 
+/**
+ * ipcRenderer.invoke, minus the "Error invoking remote method '<channel>': Error: " prefix Electron
+ * adds to errors thrown in the main process, so the UI can show the engine's message as written.
+ */
+async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  try {
+    return await ipcRenderer.invoke(channel, ...args)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(message.replace(/^Error invoking remote method '[^']*': (?:\w*Error: )?/, ''))
+  }
+}
+
 const api: AgentHqApi = {
-  getSnapshot: () => ipcRenderer.invoke(IPC.getSnapshot),
+  getSnapshot: () => invoke(IPC.getSnapshot),
   onSnapshot(cb) {
     const listener = (_event: IpcRendererEvent, snapshot: AppSnapshot): void => cb(snapshot)
     ipcRenderer.on(IPC.snapshot, listener)
@@ -11,22 +24,22 @@ const api: AgentHqApi = {
     }
   },
 
-  addUrl: (url) => ipcRenderer.invoke(IPC.addUrl, url),
-  addFiles: (paths) => ipcRenderer.invoke(IPC.addFiles, paths),
-  addNote: (text) => ipcRenderer.invoke(IPC.addNote, text),
+  addUrl: (url) => invoke(IPC.addUrl, url),
+  addFiles: (paths) => invoke(IPC.addFiles, paths),
+  addNote: (text) => invoke(IPC.addNote, text),
   pathForFile: (file) => webUtils.getPathForFile(file),
-  retrySource: (id) => ipcRenderer.invoke(IPC.retrySource, id),
+  retrySource: (id) => invoke(IPC.retrySource, id),
 
-  ask: (question) => ipcRenderer.invoke(IPC.ask, question),
-  runJanitor: () => ipcRenderer.invoke(IPC.runJanitor),
+  ask: (question) => invoke(IPC.ask, question),
+  runJanitor: () => invoke(IPC.runJanitor),
 
-  listPages: () => ipcRenderer.invoke(IPC.listPages),
-  readPage: (slug) => ipcRenderer.invoke(IPC.readPage, slug),
+  listPages: () => invoke(IPC.listPages),
+  readPage: (slug) => invoke(IPC.readPage, slug),
 
-  getSettings: () => ipcRenderer.invoke(IPC.getSettings),
-  saveSettings: (update) => ipcRenderer.invoke(IPC.saveSettings, update),
-  chooseKnowledgeDir: () => ipcRenderer.invoke(IPC.chooseKnowledgeDir),
-  openPath: (path) => ipcRenderer.invoke(IPC.openPath, path),
+  getSettings: () => invoke(IPC.getSettings),
+  saveSettings: (update) => invoke(IPC.saveSettings, update),
+  chooseKnowledgeDir: () => invoke(IPC.chooseKnowledgeDir),
+  openPath: (path) => invoke(IPC.openPath, path),
 
   window: {
     platform: process.platform,

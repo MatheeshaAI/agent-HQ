@@ -59,7 +59,7 @@ export interface DeskSpot {
 export const DESKS: DeskSpot[] = [
   { at: [3.65, 8.7], rotation: 0, agent: 'pip', monitors: 2, length: 2.4, seat: -0.5, plant: 1 },
   { at: [3.0, 2.0], rotation: 0, agent: 'sage', monitors: 2, plant: 1 },
-  { at: [6.55, 5.9], rotation: 0, agent: 'rex', monitors: 3, length: 2.4, seat: -0.45 },
+  { at: [6.55, 5.9], rotation: 0, agent: 'rex', monitors: 3, length: 2.4, seat: -0.45, plant: 1 },
   { at: [10.5, 4.85], rotation: 0, agent: 'nova', monitors: 2, seat: -0.4, plant: 1 },
   { at: [10.5, 3.05], rotation: 0, staff: true, monitors: 2, seat: 0.4, plant: -1 },
   { at: [10.85, 11.2], rotation: 0, agent: 'axel', monitors: 2, seat: -0.3, plant: 1 },
@@ -96,14 +96,18 @@ const FLOOR_PLANTS: PlantSpot[] = [
   { at: [16.0, 9.6], scale: 1.0 },
   { at: [5.2, 7.2], scale: 1.15 }, // between Pip and Rex
   { at: [12.9, 1.2], scale: 1.1 }, // beside Nova along the right wall
-  { at: [12.9, 7.4], scale: 1.0 },
+  { at: [11.8, 7.75], scale: 1.25 }, // tall palm between Axel and Muse
   { at: [16.1, 5.3], scale: 0.85 }, // beside the low bookcase
   { at: [8.3, 9.9], scale: 0.9 },
   { at: [7.1, 15.8], scale: 1.1 }, // inside the meeting room, by the front glass
   { at: [6.6, 14.6], scale: 1.0 },
   { at: [5.3, 5.0], kind: 'rubber', scale: 0.9 },
   { at: [8.9, 6.9], kind: 'rubber', scale: 0.8 },
-  { at: [6.9, 0.7], kind: 'rubber', scale: 0.9 }
+  { at: [6.9, 0.7], kind: 'rubber', scale: 0.9 },
+  { at: [0.75, 1.45], scale: 1.25 }, // between the tall bookcase and the kitchenette, under the sign's end
+  { at: [8.6, 2.6], scale: 0.95 }, // at the near end of Nova's desks
+  { at: [14.3, 5.0], scale: 0.85 }, // beside the low bookcase
+  { at: [12.7, 14.3], kind: 'rubber', scale: 0.7 } // outside the meeting room's front corner
 ]
 
 /** A small plant on the far end of each desk that asks for one. */

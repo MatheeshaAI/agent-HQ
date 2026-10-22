@@ -58,19 +58,19 @@ function KeyLight(): JSX.Element {
 }
 
 export default function Lighting(): JSX.Element {
-  useRoomEnvironment(0.35)
+  useRoomEnvironment(0.42)
 
   return (
     <>
-      <hemisphereLight args={['#6a7c99', '#1a120b', 0.45]} />
+      <hemisphereLight args={['#968a78', '#2a1a0e', 0.56]} />
       <KeyLight />
       {DOWNLIGHTS.map(({ at: [x, z], shadow, dim }) => (
         <Spot
           key={`${x},${z}`}
           from={[x, 6.5, z]}
           to={[x, 0, z]}
-          color="#ffcf9e"
-          intensity={dim ? 450 : 880}
+          color="#ffc890"
+          intensity={dim ? 650 : 1020}
           angle={0.45}
           penumbra={0.6}
           distance={12}

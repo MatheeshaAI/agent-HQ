@@ -26,6 +26,8 @@ export interface OfficeSceneProps {
   graph: GraphData
   onOpenGraph: () => void
   onAgentClick?: (id: AgentId) => void
+  /** False while another view covers the office: rendering pauses so the GPU idles. Defaults to true. */
+  active?: boolean
 }
 
 /** Aspect ratio the framing was tuned for (the reference's office region). */
@@ -122,14 +124,14 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
 /** Device pixel ratio bounds; PerformanceMonitor moves between them to hold the frame rate. */
 const MAX_DPR = Math.min(2, window.devicePixelRatio || 1)
 
-export default function OfficeScene(props: OfficeSceneProps): JSX.Element {
+export default function OfficeScene({ active = true, ...props }: OfficeSceneProps): JSX.Element {
   const [dpr, setDpr] = useState(MAX_DPR)
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden' }}>
       <Canvas
         shadows="soft"
         dpr={dpr}
-        frameloop="always"
+        frameloop={active ? 'always' : 'never'}
         camera={{ fov: CAMERA.fov, near: 1, far: 160 }}
         gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
         style={{ background: '#000' }}

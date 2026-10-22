@@ -1,5 +1,5 @@
 // Glass-walled meeting room at the front left, on a low plinth with a warm under-glow: tinted glass between
-// chunky black posts, a blue LED cap on the back wall, a door pair on the front, a long dark table with black
+// slim black posts, a blue LED cap on the back wall, a door pair on the front, a long dark table with black
 // leather chairs and a tinted glass panel reading "Collaboration Builds Better Agents".
 import { useEffect, useMemo } from 'react'
 import { Box, Cylinder, tiledBoxGeometry } from '../primitives'
@@ -10,7 +10,7 @@ import TextPlane, { type TextLine } from '../textures/TextPlane'
 import NoReflection from '../NoReflection'
 import { chairGeometry } from './chairGeometry'
 
-const POST = 0.055
+const POST = 0.045
 const { min, max, height, plinth: P, table } = MEETING_ROOM
 
 const PANEL_LINES: TextLine[] = [
@@ -29,11 +29,11 @@ interface GlassWallProps {
   door?: number
 }
 
-/** A glass wall with black posts every ~1.3 m, a kerb, a top rail and an optional blue LED cap. */
+/** A glass wall with slim black posts every ~1.9 m, a kerb, a top rail and an optional blue LED cap. */
 function GlassWall({ axis, fixed, from, to, glow, door }: GlassWallProps): JSX.Element {
   const mat = useMat()
   const len = to - from
-  const posts = Math.max(1, Math.round(len / 1.3))
+  const posts = Math.max(1, Math.round(len / 1.9))
   const along = (
     t: number,
     y: number,

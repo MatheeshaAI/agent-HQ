@@ -44,7 +44,7 @@ function Monitor({ at, yaw, kind, seed, busy }: MonitorProps): JSX.Element {
       scroll.current += dt * 0.035
       map.offset.y = scroll.current % 1
     }
-    screen.color.setScalar(busy ? 1.25 : 0.9)
+    screen.color.setScalar(busy ? 1.4 : 1.12)
   })
 
   const w = 0.7

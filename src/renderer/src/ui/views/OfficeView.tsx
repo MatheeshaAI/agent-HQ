@@ -12,12 +12,13 @@ function handleAgentClick(id: AgentId): void {
   else navigation.focusAgent(id)
 }
 
-export function OfficeView(): JSX.Element {
+/** `active` is false while another view covers the office, which pauses its rendering. */
+export function OfficeView({ active }: { active: boolean }): JSX.Element {
   const { agents, graph } = useSnapshot()
   return (
     <div className={styles.office}>
       <Suspense fallback={<div className={styles.officeLoading}>Loading the office…</div>}>
-        <OfficeScene agents={agents} graph={graph} onOpenGraph={() => navigation.go('graph')} onAgentClick={handleAgentClick} />
+        <OfficeScene agents={agents} graph={graph} onOpenGraph={() => navigation.go('graph')} onAgentClick={handleAgentClick} active={active} />
       </Suspense>
     </div>
   )

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import type { AgentStatus, GraphData } from '@shared/types'
 import OfficeScene from '@renderer/office/OfficeScene'
+import wikiGraph from './wiki-graph.json'
 
 // Sample props for the harness only; the shipped app passes the engine's live snapshot.
 const now = Date.now()
@@ -31,14 +32,18 @@ function sampleGraph(count: number): GraphData {
   return { nodes, edges }
 }
 
-// ?nodes=0 renders the empty-wiki state; ?states=error,idle,... overrides the agents' states in order.
+// ?nodes=N renders a random N-page graph (0: the empty-wiki state); ?graph=wiki uses the 19-page graph of a
+// real sample wiki (wiki-graph.json); ?states=error,idle,... overrides the agents' states in order.
 const params = new URLSearchParams(location.search)
-const graph = sampleGraph(Number(params.get('nodes') ?? 40))
+const graph: GraphData = params.get('graph') === 'wiki' ? wikiGraph : sampleGraph(Number(params.get('nodes') ?? 40))
 params
   .get('states')
   ?.split(',')
   .forEach((state, i) => {
-    if (agents[i]) agents[i].state = state as AgentStatus['state']
+    if (!agents[i]) return
+    agents[i].state = state as AgentStatus['state']
+    // A long error line, like a failed fetch, to check that the card ellipsizes it.
+    if (state === 'error') agents[i].activity = 'Could not fetch karpathy.github.io/llm-wiki: getaddrinfo ENOTFOUND'
   })
 
 // Count WebGL draw calls per frame (all passes: shadows, reflection, AO, bloom) for the screenshot script.
