@@ -7,11 +7,11 @@
 }
 .tile_teal {
   background: radial-gradient(circle at 35% 30%, rgba(80, 200, 210, 0.24), rgba(30, 90, 105, 0.22));
-  color: #6fe0e6;
+  color: #a6f5f0;
 }
 .tile_green {
   background: radial-gradient(circle at 35% 30%, rgba(60, 200, 150, 0.28), rgba(10, 90, 70, 0.3));
-  color: #79e3bf;
+  color: #a9f0d4;
 }
 .tile_indigo {
   background: radial-gradient(circle at 35% 30%, rgba(120, 130, 240, 0.28), rgba(40, 45, 120, 0.3));
@@ -24,10 +24,6 @@
 .tile_red {
   background: radial-gradient(circle at 35% 30%, rgba(240, 90, 90, 0.28), rgba(110, 20, 20, 0.3));
   color: #fca5a5;
-}
-.tile_slate {
-  background: radial-gradient(circle at 35% 30%, rgba(140, 160, 190, 0.2), rgba(40, 50, 65, 0.3));
-  color: #b8c4d6;
 }
 
 /* Status dots and chips */

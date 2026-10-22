@@ -12,27 +12,29 @@ import sys
 import numpy as np
 
 OX, OY, CW, CH = 172, 80, 1060, 800
-FOV = 22.0
+FOV = 10.0
 
 # CAMERA in layout.ts: yaw, elevation (degrees), distance, target x, target z, target y.
-CURRENT = np.array([41.4, 27.0, 35.7, 9.07, 7.2, 0.12])
+CURRENT = np.array([42.6, 19.6, 63.7, 9.06, 7.37, 1.11])
 
-# Layout points (metres) and where the reference shows them (pixels): seated agents, the sofa, the back corner.
+# Layout points (metres) and where the reference shows them (pixels): seated heads (y = 1.25) and the room's
+# structural corners.
 LANDMARKS = [
-    ((4.8 + 0.78, 0, 8.8), (505, 470)),     # Pip
-    ((7.0 + 0.78, 0, 5.75), (700, 450)),    # Rex
-    ((12.45 + 0.78, 0, 5.2), (985, 520)),   # Nova
-    ((11.6 + 0.78, 0, 10.4), (725, 625)),   # Axel
-    ((16.0 + 0.78, 0, 7.95), (1036, 660)),  # Muse
-    ((14.6, 0, 12.3), (760, 720)),          # sofa
-    ((0, 3.0, 0), (600, 100)),              # back corner, top of the fitted wall band
+    ((4.4, 1.25, 8.2), (424, 412)),      # Pip
+    ((7.35, 1.25, 5.45), (705, 410)),    # Rex
+    ((11.15, 1.25, 4.45), (952, 455)),   # Nova
+    ((11.55, 1.25, 10.9), (652, 577)),   # Axel
+    ((11.75, 1.25, 9.75), (727, 560)),   # Axel's neighbour
+    ((15.6, 1.25, 8.1), (1037, 600)),    # Muse
+    ((0, 0, 0), (595, 300)),             # back corner, floor
+    ((0, 3.4, 0), (598, 105)),           # back corner, wall cap
+    ((16.5, 0, 15.4), (705, 875)),       # front corner
 ]
 
 # Reference pixels whose floor position is useful when placing furniture.
 MARKS = {
-    'pip': (505, 470), 'rex': (700, 450), 'nova': (955, 525), 'axel': (725, 625), 'muse': (1036, 660),
-    'sofa': (760, 720), 'lamp_front': (910, 745), 'lamp_back': (1157, 520), 'bookcase_right': (1160, 640),
-    'meeting_glass_corner': (515, 740), 'meeting_glass_back': (250, 560),
+    'pip': (430, 476), 'sofa': (760, 720), 'lamp_front': (910, 745), 'bookcase_right': (1160, 640),
+    'meeting_glass_back_corner': (527, 730), 'meeting_glass_front_corner': (352, 800), 'printer': (480, 423),
 }
 
 

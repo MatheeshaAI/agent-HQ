@@ -1,25 +1,25 @@
-import { BookOpen, CircleCheckBig, House, Inbox, Settings, Share2, User, type LucideIcon } from 'lucide-react'
+import { CircleCheck, Share2 } from 'lucide-react'
 import { useSnapshot } from '../../state/snapshot'
 import { navigation, useNavigation, type ViewId } from '../../state/navigation'
 import { inboxCount, pendingTaskCount } from '../../state/derived'
+import { BookGlyph, GearGlyph, HouseGlyph, InboxGlyph, UserGlyph, type IconComponent } from '../common/glyphs'
 import styles from './Sidebar.module.css'
 
 interface NavItem {
   view: ViewId
   label: string
-  icon: LucideIcon
-  /** Solid glyph, as drawn in the reference; outline-only icons keep their strokes readable */
-  filled: boolean
+  /** Solid glyphs where the reference draws them solid; Tasks and Graph stay outline icons */
+  icon: IconComponent
 }
 
 const ITEMS: NavItem[] = [
-  { view: 'office', label: 'Office', icon: House, filled: true },
-  { view: 'agents', label: 'Agents', icon: User, filled: true },
-  { view: 'knowledge', label: 'Knowledge', icon: BookOpen, filled: true },
-  { view: 'tasks', label: 'Tasks', icon: CircleCheckBig, filled: false },
-  { view: 'graph', label: 'Graph', icon: Share2, filled: false },
-  { view: 'inbox', label: 'Inbox', icon: Inbox, filled: true },
-  { view: 'settings', label: 'Settings', icon: Settings, filled: true }
+  { view: 'office', label: 'Office', icon: HouseGlyph },
+  { view: 'agents', label: 'Agents', icon: UserGlyph },
+  { view: 'knowledge', label: 'Knowledge', icon: BookGlyph },
+  { view: 'tasks', label: 'Tasks', icon: CircleCheck },
+  { view: 'graph', label: 'Graph', icon: Share2 },
+  { view: 'inbox', label: 'Inbox', icon: InboxGlyph },
+  { view: 'settings', label: 'Settings', icon: GearGlyph }
 ]
 
 export function Sidebar(): JSX.Element {
@@ -32,7 +32,7 @@ export function Sidebar(): JSX.Element {
 
   return (
     <nav className={styles.sidebar} aria-label="Main">
-      {ITEMS.map(({ view, label, icon: Icon, filled }) => {
+      {ITEMS.map(({ view, label, icon: Icon }) => {
         const active = view === current
         const badge = badges[view] ?? 0
         return (
@@ -42,7 +42,7 @@ export function Sidebar(): JSX.Element {
             onClick={() => navigation.go(view)}
             aria-current={active ? 'page' : undefined}
           >
-            <Icon size={20} strokeWidth={2} className={`${styles.icon} ${filled ? styles.filled : ''}`} />
+            <Icon size={22} className={styles.icon} />
             <span className={styles.label}>{label}</span>
             {badge > 0 && <span className={styles.badge}>{badge > 99 ? '99+' : badge}</span>}
           </button>

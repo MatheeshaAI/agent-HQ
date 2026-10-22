@@ -69,7 +69,8 @@ function GraphScreen({ graph, onOpen }: GraphScreenProps): JSX.Element {
       <mesh position={[0, 0, 0.012]} material={material} onClick={click} onPointerOver={over} onPointerOut={out}>
         <planeGeometry args={[w, h]} />
       </mesh>
-      <pointLight position={[0, 0, 1.1]} color="#2fb6ff" intensity={2.5} distance={4.5} decay={2} />
+      {/* Cyan spill on the wall around the screen and on the floor in front of it. */}
+      <pointLight position={[0, -0.6, 1.0]} color="#3fc8ff" intensity={5} distance={6} decay={2} />
     </group>
   )
 }

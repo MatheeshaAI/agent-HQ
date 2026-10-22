@@ -1,17 +1,21 @@
-// Glass-walled meeting room in the front-left corner: frameless glass with blue edge light,
-// a long dark table with chairs and an etched glass panel reading "Collaboration Builds Better Agents".
-import { useMemo } from 'react'
-import { Box } from '../primitives'
+// Glass-walled meeting room at the front left, on a low plinth with a warm under-glow: tinted glass between
+// chunky black posts, a blue LED cap on the back wall, a door pair on the front, a long dark table with black
+// leather chairs and a tinted glass panel reading "Collaboration Builds Better Agents".
+import { useEffect, useMemo } from 'react'
+import { Box, Cylinder, tiledBoxGeometry } from '../primitives'
+import { TILE_PERIOD } from '../textures/tiles'
 import { useMat } from '../materials'
 import { MEETING_ROOM } from '../layout'
 import TextPlane, { type TextLine } from '../textures/TextPlane'
+import NoReflection from '../NoReflection'
 import { chairGeometry } from './chairGeometry'
 
-const POST = 0.035
+const POST = 0.055
+const { min, max, height, plinth: P, table } = MEETING_ROOM
 
 const PANEL_LINES: TextLine[] = [
-  { text: 'Collaboration', size: 0.11, y: 0.42, weight: 500, color: '#e3f1ff', glow: '#60a5fa' },
-  { text: 'Builds Better Agents', size: 0.11, y: 0.58, weight: 500, color: '#e3f1ff', glow: '#60a5fa' }
+  { text: 'Collaboration', size: 0.1, y: 0.42, weight: 500, color: '#e3f1ff', glow: '#60a5fa' },
+  { text: 'Builds Better Agents', size: 0.1, y: 0.58, weight: 500, color: '#e3f1ff', glow: '#60a5fa' }
 ]
 
 interface GlassWallProps {
@@ -20,12 +24,13 @@ interface GlassWallProps {
   fixed: number
   from: number
   to: number
-  height: number
   glow?: boolean
+  /** Position along the wall of a door pair's centre. */
+  door?: number
 }
 
-/** A frameless glass wall with slim black posts every ~1.3 m, a kerb and an optional blue LED cap. */
-function GlassWall({ axis, fixed, from, to, height, glow }: GlassWallProps): JSX.Element {
+/** A glass wall with black posts every ~1.3 m, a kerb, a top rail and an optional blue LED cap. */
+function GlassWall({ axis, fixed, from, to, glow, door }: GlassWallProps): JSX.Element {
   const mat = useMat()
   const len = to - from
   const posts = Math.max(1, Math.round(len / 1.3))
@@ -34,12 +39,14 @@ function GlassWall({ axis, fixed, from, to, height, glow }: GlassWallProps): JSX
     y: number,
     size: [number, number, number]
   ): { at: [number, number, number]; size: [number, number, number] } =>
-    axis === 'x' ? { at: [t, y, fixed], size } : { at: [fixed, y, t], size: [size[2], size[1], size[0]] }
+    axis === 'x' ? { at: [t, P + y, fixed], size } : { at: [fixed, P + y, t], size: [size[2], size[1], size[0]] }
 
-  const pane = along(from + len / 2, height / 2 + 0.06, [len, height - 0.06, 0.012])
+  const pane = along(from + len / 2, height / 2 + 0.03, [len, height - 0.06, 0.012])
   const kerb = along(from + len / 2, 0.03, [len, 0.06, 0.08])
-  const top = along(from + len / 2, height + 0.015, [len, 0.03, 0.05])
-  const led = along(from + len / 2, height + 0.04, [len, 0.014, 0.02])
+  const top = along(from + len / 2, height + 0.02, [len, 0.04, 0.07])
+  const led = along(from + len / 2, height + 0.05, [len, 0.016, 0.022])
+  const postAt = Array.from({ length: posts + 1 }, (_, i) => from + (i * len) / posts)
+  const doorFrames = door === undefined ? [] : [door - 0.9, door, door + 0.9]
 
   return (
     <group>
@@ -47,33 +54,39 @@ function GlassWall({ axis, fixed, from, to, height, glow }: GlassWallProps): JSX
       <Box {...kerb} material={mat.blackMetal} />
       <Box {...top} material={mat.blackMetal} />
       {glow && <Box {...led} material={mat.blueLight} shadows={false} />}
-      {Array.from({ length: posts + 1 }, (_, i) => {
-        const p = along(from + (i * len) / posts, height / 2, [POST, height, POST])
-        return <Box key={i} {...p} material={mat.blackMetal} />
-      })}
+      {[...postAt, ...doorFrames].map((t) => (
+        <Box key={t} {...along(t, height / 2, [POST, height, POST])} material={mat.blackMetal} />
+      ))}
+      {/* Vertical bar handles either side of the door pair's meeting stile. */}
+      {door !== undefined &&
+        [-0.09, 0.09].map((d) => (
+          <Box key={d} {...along(door + d, 1.05, [0.02, 0.45, 0.06])} material={mat.brushedMetal} />
+        ))}
     </group>
   )
 }
 
+/** The etched panel fills the lower part of the right (x = max) glass face. */
 function CollaborationPanel(): JSX.Element {
   const mat = useMat()
-  const { min, max } = MEETING_ROOM
-  const zc = (min[1] + max[1]) / 2 + 0.2
-  const w = 2.3
-  const h = 1.35
-
+  const z0 = min[1] + 0.4
+  const z1 = max[1] - 0.4
+  const w = z1 - z0
+  const h = 1.5
   return (
-    <group position={[max[0] + 0.03, 1.08, zc]} rotation={[0, Math.PI / 2, 0]}>
-      <mesh material={mat.tintedGlass}>
-        <planeGeometry args={[w, h]} />
-      </mesh>
-      {/* Glowing blue frame. */}
-      <Box size={[w, 0.02, 0.01]} at={[0, h / 2, 0.005]} material={mat.blueLight} shadows={false} />
-      <Box size={[w, 0.02, 0.01]} at={[0, -h / 2, 0.005]} material={mat.blueLight} shadows={false} />
-      <Box size={[0.02, h, 0.01]} at={[-w / 2, 0, 0.005]} material={mat.blueLight} shadows={false} />
-      <Box size={[0.02, h, 0.01]} at={[w / 2, 0, 0.005]} material={mat.blueLight} shadows={false} />
-      <TextPlane lines={PANEL_LINES} width={w} height={h} intensity={1.3} position={[0, 0, 0.012]} />
-      <pointLight position={[0.6, 0, 0]} color="#2f7dff" intensity={1.6} distance={3} decay={2} />
+    <group position={[max[0] + 0.03, P + 0.15 + h / 2, (z0 + z1) / 2]} rotation={[0, Math.PI / 2, 0]}>
+      <NoReflection>
+        <mesh material={mat.tintedGlass}>
+          <planeGeometry args={[w, h]} />
+        </mesh>
+        {/* Glowing cyan-blue frame. */}
+        <Box size={[w, 0.02, 0.01]} at={[0, h / 2, 0.005]} material={mat.blueLight} shadows={false} />
+        <Box size={[w, 0.02, 0.01]} at={[0, -h / 2, 0.005]} material={mat.blueLight} shadows={false} />
+        <Box size={[0.02, h, 0.01]} at={[-w / 2, 0, 0.005]} material={mat.cyanLight} shadows={false} />
+        <Box size={[0.02, h, 0.01]} at={[w / 2, 0, 0.005]} material={mat.blueLight} shadows={false} />
+        <TextPlane lines={PANEL_LINES} width={w} height={h} intensity={1.3} position={[0, 0, 0.012]} />
+      </NoReflection>
+      <pointLight position={[0, -0.3, 0.6]} color="#2f7dff" intensity={1.5} distance={2.5} decay={2} />
     </group>
   )
 }
@@ -81,58 +94,74 @@ function CollaborationPanel(): JSX.Element {
 function Table(): JSX.Element {
   const mat = useMat()
   const chair = useMemo(() => chairGeometry(), [])
-  const { min, max } = MEETING_ROOM
-  const cx = (min[0] + max[0]) / 2 - 0.1
-  const cz = (min[1] + max[1]) / 2 + 0.1
   const len = 2.6
-  const seats = [-0.85, 0, 0.85]
+  const seats = [-0.96, -0.32, 0.32, 0.96]
+  const top = P + 0.74
   return (
-    <group position={[cx, 0, cz]}>
-      <Box size={[1.1, 0.05, len]} at={[0, 0.74, 0]} material={mat.tableGlass} />
-      <Box size={[0.5, 0.7, 0.08]} at={[0, 0.36, -len / 2 + 0.4]} material={mat.blackMetal} />
-      <Box size={[0.5, 0.7, 0.08]} at={[0, 0.36, len / 2 - 0.4]} material={mat.blackMetal} />
-      {seats.map((z) => (
-        <group key={z}>
+    <group position={[table[0], 0, table[1]]}>
+      <Box size={[1.1, 0.05, len]} at={[0, top, 0]} material={mat.tableGlass} />
+      <Box size={[0.5, 0.7, 0.08]} at={[0, P + 0.36, -len / 2 + 0.4]} material={mat.blackMetal} />
+      <Box size={[0.5, 0.7, 0.08]} at={[0, P + 0.36, len / 2 - 0.4]} material={mat.blackMetal} />
+      {seats.flatMap((z) =>
+        [-1, 1].map((s) => (
           <mesh
+            key={`${z},${s}`}
             geometry={chair}
-            material={[mat.fabric, mat.blackMetal]}
-            position={[0.85, 0, z]}
-            rotation={[0, 0.1, 0]}
+            material={[mat.leather, mat.blackMetal]}
+            position={[s * 0.85, P, z]}
+            rotation={[0, (s < 0 ? Math.PI : 0) + z * 0.08, 0]}
             castShadow
           />
-          <mesh
-            geometry={chair}
-            material={[mat.fabric, mat.blackMetal]}
-            position={[-0.85, 0, z]}
-            rotation={[0, Math.PI - 0.1, 0]}
-            castShadow
-          />
-        </group>
-      ))}
-      <mesh
-        geometry={chair}
-        material={[mat.fabric, mat.blackMetal]}
-        position={[0, 0, -len / 2 - 0.45]}
-        rotation={[0, Math.PI / 2, 0]}
-        castShadow
-      />
-      {/* Notebooks and cups on the table. */}
-      {[-0.8, 0.1, 0.9].map((z, i) => (
-        <Box key={z} size={[0.22, 0.01, 0.3]} at={[i % 2 ? 0.25 : -0.25, 0.77, z]} material={mat.cabinetWhite} />
+        ))
+      )}
+      {/* White runner with papers and cups; the centrepiece plant is placed by Plants. */}
+      <Box size={[0.35, 0.005, len - 0.4]} at={[0, top + 0.028, 0]} material={mat.paper} shadows={false} />
+      {[-0.9, 0.35, 0.95].map((z, i) => (
+        <Cylinder
+          key={z}
+          radius={0.04}
+          height={0.09}
+          at={[i % 2 ? 0.32 : -0.32, top + 0.07, z]}
+          material={mat.ceramic}
+        />
       ))}
     </group>
   )
 }
 
 export default function MeetingRoom(): JSX.Element {
-  const { min, max, height } = MEETING_ROOM
+  const mat = useMat()
+  const w = max[0] - min[0]
+  const d = max[1] - min[1]
+  const floor = useMemo(() => tiledBoxGeometry([w, 0.01, d], TILE_PERIOD), [w, d])
+  useEffect(() => () => floor.dispose(), [floor])
   return (
     <group>
+      {/* Stone-floored plinth with a warm under-glow along its visible faces. */}
+      <Box size={[w, P, d]} at={[min[0] + w / 2, P / 2, min[1] + d / 2]} material={mat.slabEdge} />
+      <mesh
+        geometry={floor}
+        material={mat.stoneFloor}
+        position={[min[0] + w / 2, P + 0.005, min[1] + d / 2]}
+        receiveShadow
+      />
+      <Box
+        size={[0.015, 0.015, d]}
+        at={[max[0] + 0.01, 0.02, min[1] + d / 2]}
+        material={mat.warmLight}
+        shadows={false}
+      />
+      <Box
+        size={[w, 0.015, 0.015]}
+        at={[min[0] + w / 2, 0.02, max[1] + 0.01]}
+        material={mat.warmLight}
+        shadows={false}
+      />
       <Table />
-      <GlassWall axis="x" fixed={min[1]} from={min[0]} to={max[0]} height={height} glow />
-      <GlassWall axis="z" fixed={max[0]} from={min[1]} to={max[1]} height={height} />
-      <GlassWall axis="z" fixed={min[0]} from={min[1]} to={max[1]} height={height} />
-      <GlassWall axis="x" fixed={max[1]} from={min[0]} to={max[0]} height={height} />
+      <GlassWall axis="x" fixed={min[1]} from={min[0]} to={max[0]} glow />
+      <GlassWall axis="z" fixed={max[0]} from={min[1]} to={max[1]} glow />
+      <GlassWall axis="z" fixed={min[0]} from={min[1]} to={max[1]} />
+      <GlassWall axis="x" fixed={max[1]} from={min[0]} to={max[0]} door={max[0] - 2.2} />
       <CollaborationPanel />
     </group>
   )

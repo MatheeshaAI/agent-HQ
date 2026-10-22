@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { Bot, CircleCheck, Clock, Link2Off, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { CircleCheck, Clock, Link2Off, LoaderCircle, TriangleAlert } from 'lucide-react'
 import type { JanitorReport } from '@shared/types'
 import { useSnapshot } from '../../state/snapshot'
 import { usePages } from '../../state/pages'
@@ -7,6 +7,7 @@ import { navigation } from '../../state/navigation'
 import { formatRelative, useNow } from '../../state/clock'
 import type { Tone } from '../../state/derived'
 import { Popover } from '../common/Popover'
+import { JanitorBot } from '../common/glyphs'
 import { StatusDot } from '../common/StatusDot'
 import styles from './BottomBar.module.css'
 
@@ -45,12 +46,12 @@ export function JanitorStrip(): JSX.Element {
     <div className={styles.janitor}>
       <div className={styles.identity} title={axel?.activity}>
         <span className={styles.avatarTile}>
-          <Bot size={27} strokeWidth={1.8} />
+          <JanitorBot size={34} />
         </span>
         <span className={styles.identityName}>{axel ? `${axel.name} - ${axel.role}` : 'Axel - Janitor'}</span>
         <span className={`${styles.statusPill} ${styles[`statusPill_${status.tone}`]}`}>
           <span className={styles.ringDot}>
-            <StatusDot tone={status.tone} size={6} pulse={janitor.running} />
+            <StatusDot tone={status.tone} size={7} pulse={janitor.running} />
           </span>
           {status.label}
         </span>

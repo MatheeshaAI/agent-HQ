@@ -12,7 +12,7 @@ export function HintRow(): JSX.Element {
     <div className={styles.hints}>
       {HINTS.map(({ icon: Icon, text }) => (
         <div key={text} className={styles.hint}>
-          <Icon size={18} strokeWidth={1.8} className={styles.hintIcon} />
+          <Icon size={20} strokeWidth={1.7} className={styles.hintIcon} />
           {text}
         </div>
       ))}

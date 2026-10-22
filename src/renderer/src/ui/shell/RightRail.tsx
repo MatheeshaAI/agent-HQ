@@ -1,15 +1,14 @@
 import type { ReactNode } from 'react'
-import { CircleMinus, ListTodo, Radio } from 'lucide-react'
+import { ListTodo, Radio } from 'lucide-react'
 import { useSnapshot } from '../../state/snapshot'
 import { navigation } from '../../state/navigation'
 import { formatRelative, useNow } from '../../state/clock'
 import { agentPresence, onlineAgentCount, tasksForDisplay } from '../../state/derived'
-import { ACTIVITY_ICONS, AGENT_ICONS, activityTone, type TileTone } from '../common/icons'
+import { ACTIVITY_ICONS, AGENT_ICONS, AGENT_TONES, activityTone } from '../common/icons'
 import { IconTile } from '../common/IconTile'
 import { StatusDot } from '../common/StatusDot'
 import { EmptyState } from '../common/EmptyState'
 import { useFitCount } from '../common/useFitCount'
-import type { TaskItem } from '@shared/types'
 import styles from './RightRail.module.css'
 
 const ACTIVITY_ROW_H = 52
@@ -74,7 +73,7 @@ function LiveActivityCard(): JSX.Element {
         ) : (
           activity.slice(0, fit).map((item) => (
             <li key={item.id} className={styles.activityRow} title={`${item.title}\n${item.detail}`}>
-              <IconTile icon={ACTIVITY_ICONS[item.kind]} tone={activityTone(item.kind)} size={32} />
+              <IconTile icon={ACTIVITY_ICONS[item.kind]} tone={activityTone(item.kind)} size={30} />
               <div className={styles.rowText}>
                 <div className={styles.activityTitle}>{item.title}</div>
                 <div className={styles.activityDetail}>{item.detail}</div>
@@ -88,13 +87,6 @@ function LiveActivityCard(): JSX.Element {
   )
 }
 
-const TASK_TONES: Record<TaskItem['status'], TileTone> = {
-  running: 'teal',
-  queued: 'amber',
-  done: 'slate',
-  failed: 'red'
-}
-
 function CurrentTasksCard(): JSX.Element {
   const { tasks, agents } = useSnapshot()
   const now = useNow()
@@ -105,7 +97,7 @@ function CurrentTasksCard(): JSX.Element {
     <Card
       className={styles.tasksCard}
       title="Current Tasks"
-      icon={<CircleMinus size={14} strokeWidth={2.6} className={styles.tasksIcon} aria-hidden />}
+      icon={<span className={styles.tasksIcon} aria-hidden />}
       aside={<ViewAll onClick={() => navigation.go('tasks')} />}
     >
       <ul ref={listRef} className={styles.list}>
@@ -118,7 +110,7 @@ function CurrentTasksCard(): JSX.Element {
             .slice(0, fit)
             .map((task) => (
               <li key={task.id} className={styles.taskRow} title={task.error ?? task.title}>
-                <IconTile icon={AGENT_ICONS[task.agent]} tone={TASK_TONES[task.status]} size={28} />
+                <IconTile icon={AGENT_ICONS[task.agent]} tone={task.status === 'failed' ? 'red' : AGENT_TONES[task.agent]} size={26} />
                 <div className={styles.rowText}>
                   <div className={styles.taskTitle}>{task.title}</div>
                   <div className={styles.taskRole}>{roleOf.get(task.agent) ?? task.agent}</div>

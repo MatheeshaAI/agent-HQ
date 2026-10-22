@@ -8,25 +8,34 @@ export type Vec2 = readonly [x: number, z: number]
 export type Vec3 = readonly [x: number, y: number, z: number]
 
 export const ROOM = {
-  width: 19.0, // along x (right wall)
-  depth: 17.7, // along z (left wall)
-  /** Both back walls; the lower 3.1-3.4 m carries the fittings, the rest is a dark upper band. */
-  wallHeight: 4.6,
+  width: 16.5, // along x (right wall)
+  depth: 15.4, // along z (left wall)
+  /** Both back walls; the fittings stay below the black-metal cap at CAP_HEIGHT, a dark band runs above it into the dark. */
+  wallHeight: 5.0,
   slabThickness: 0.45
 } as const
 
-/** Fitted to the reference with scripts/office-preview/fit_camera.py. */
+/** Height of the black-metal cap line on both walls. */
+export const CAP_HEIGHT = 3.4
+
+/** The left wall is only built (and seen) up to here; past it the room opens into the dark. */
+export const LEFT_WALL_END = 8.1
+
+/**
+ * Near-orthographic view fitted to the reference's structural lines (back corner, front corner, slab edge,
+ * left-wall base) and the seated heads with scripts/office-preview/fit_camera.py.
+ */
 export const CAMERA = {
-  fov: 22,
-  target: [9.07, 0.12, 7.2] as Vec3,
+  fov: 10,
+  target: [9.06, 1.11, 7.37] as Vec3,
   /** Degrees around +y, measured from +z towards +x. */
-  yaw: 41.4,
+  yaw: 42.6,
   /** Degrees above the horizon. */
-  elevation: 27,
-  distance: 35.7
+  elevation: 19.6,
+  distance: 63.7
 } as const
 
-/** Direction a seated agent faces; everyone looks towards the left wall (-x), like the reference. */
+/** Direction a seated person faces; everyone looks towards the left wall (-x), like the reference. */
 export const FACING = -Math.PI / 2
 
 export interface DeskSpot {
@@ -34,108 +43,157 @@ export interface DeskSpot {
   at: Vec2
   /** Rotation around y; 0 means the user sits on +x and faces -x. */
   rotation: number
+  /** The agent working here, or `staff` for a non-interactive colleague. */
   agent?: AgentId
+  staff?: true
   monitors: 1 | 2 | 3
+  /** Desk length along its local z (default DESK.length). */
+  length?: number
+  /** Where the workplace (seat, monitors, keyboard) sits along the desk, local z from the centre. */
+  seat?: number
+  /** Which end (+1 / -1 local z) carries a small potted plant. */
+  plant?: 1 | -1
 }
 
+// Pairs of desks abut into one long bench, with their two people sitting towards the middle, like the reference.
 export const DESKS: DeskSpot[] = [
-  { at: [4.8, 8.8], rotation: 0, agent: 'pip', monitors: 2 },
-  { at: [4.8, 7.2], rotation: 0, monitors: 1 },
-  { at: [4.7, 2.6], rotation: 0, agent: 'sage', monitors: 2 },
-  { at: [7.0, 5.75], rotation: 0, agent: 'rex', monitors: 2 },
-  { at: [7.0, 4.15], rotation: 0, monitors: 1 },
-  { at: [12.45, 5.2], rotation: 0, agent: 'nova', monitors: 2 },
-  { at: [12.45, 3.6], rotation: 0, monitors: 2 },
-  { at: [11.6, 10.4], rotation: 0, agent: 'axel', monitors: 2 },
-  { at: [11.6, 12.0], rotation: 0, monitors: 1 },
-  { at: [16.0, 7.95], rotation: 0, agent: 'muse', monitors: 1 }
+  { at: [3.65, 8.7], rotation: 0, agent: 'pip', monitors: 2, length: 2.4, seat: -0.5, plant: 1 },
+  { at: [3.0, 2.0], rotation: 0, agent: 'sage', monitors: 2, plant: 1 },
+  { at: [6.55, 5.9], rotation: 0, agent: 'rex', monitors: 3, length: 2.4, seat: -0.45 },
+  { at: [10.5, 4.85], rotation: 0, agent: 'nova', monitors: 2, seat: -0.4, plant: 1 },
+  { at: [10.5, 3.05], rotation: 0, staff: true, monitors: 2, seat: 0.4, plant: -1 },
+  { at: [10.85, 11.2], rotation: 0, agent: 'axel', monitors: 2, seat: -0.3, plant: 1 },
+  { at: [10.85, 9.4], rotation: 0, staff: true, monitors: 1, seat: 0.35, plant: -1 },
+  { at: [14.85, 8.35], rotation: 0, agent: 'muse', monitors: 1, plant: 1 }
 ]
 
-/** Seat offset from the desk centre, in the desk's local frame. */
-export const SEAT_OFFSET = 0.78
+/** Seat offset from the desk centre (local +x), in the desk's local frame. */
+export const SEAT_OFFSET = 0.85
 
-export const PLANTS: { at: Vec2; scale: number }[] = [
-  { at: [1.0, 12.4], scale: 1.3 },
-  { at: [3.3, 9.9], scale: 0.8 },
-  { at: [6.3, 10.0], scale: 0.9 },
-  { at: [8.4, 8.6], scale: 1.0 },
-  { at: [8.7, 6.6], scale: 0.9 },
-  { at: [9.0, 1.0], scale: 1.4 },
-  { at: [5.8, 1.0], scale: 0.9 },
-  { at: [10.5, 3.0], scale: 1.1 },
-  { at: [11.0, 7.0], scale: 0.9 },
-  { at: [14.4, 9.8], scale: 1.4 },
-  { at: [14.2, 6.4], scale: 1.1 },
-  { at: [17.6, 9.6], scale: 1.1 },
-  { at: [18.3, 3.0], scale: 0.9 },
-  { at: [13.0, 0.8], scale: 1.0 },
-  { at: [17.0, 1.0], scale: 1.0 },
-  { at: [12.4, 14.0], scale: 0.8 },
-  { at: [2.9, 15.0], scale: 1.2 },
-  { at: [2.8, 17.0], scale: 1.1 },
-  { at: [0.7, 13.4], scale: 1.0 },
-  { at: [7.8, 1.2], scale: 0.8 },
-  { at: [9.6, 5.6], scale: 0.75 },
-  { at: [14.6, 2.0], scale: 1.2 },
-  { at: [18.4, 7.4], scale: 1.0 },
-  { at: [17.9, 12.2], scale: 0.9 },
-  { at: [10.2, 12.6], scale: 0.9 }
+/** Desk-top height (shared by the desks and the plants standing on them). */
+export const DESK_TOP = 0.76
+
+export interface PlantSpot {
+  at: Vec2
+  scale: number
+  /** Height of the pot's base above the floor (on a desk or a table). */
+  y?: number
+  /**
+   * 'palm' (default): tall arching palm in a tapered floor planter.
+   * 'rubber': broad-leaved accent plant. 'small': little leafy plant in a ceramic pot, for furniture tops.
+   */
+  kind?: 'palm' | 'rubber' | 'small'
+}
+
+const FLOOR_PLANTS: PlantSpot[] = [
+  { at: [0.8, 8.9], scale: 1.3 }, // at the left wall's lit end pilaster
+  { at: [2.0, 0.8], scale: 1.2 }, // between the kitchen and Sage
+  { at: [4.8, 0.6], scale: 1.1 },
+  { at: [9.0, 1.0], scale: 1.0 },
+  { at: [12.1, 13.1], scale: 0.9 }, // by the meeting room's back-right corner
+  { at: [13.4, 7.3], scale: 1.2 }, // in front of Muse's desk
+  { at: [16.0, 2.6], scale: 1.0 },
+  { at: [16.0, 9.6], scale: 1.0 },
+  { at: [5.2, 7.2], scale: 1.15 }, // between Pip and Rex
+  { at: [12.9, 1.2], scale: 1.1 }, // beside Nova along the right wall
+  { at: [12.9, 7.4], scale: 1.0 },
+  { at: [16.1, 5.3], scale: 0.85 }, // beside the low bookcase
+  { at: [8.3, 9.9], scale: 0.9 },
+  { at: [7.1, 15.8], scale: 1.1 }, // inside the meeting room, by the front glass
+  { at: [6.6, 14.6], scale: 1.0 },
+  { at: [5.3, 5.0], kind: 'rubber', scale: 0.9 },
+  { at: [8.9, 6.9], kind: 'rubber', scale: 0.8 },
+  { at: [6.9, 0.7], kind: 'rubber', scale: 0.9 }
 ]
+
+/** A small plant on the far end of each desk that asks for one. */
+const DESK_PLANTS: PlantSpot[] = DESKS.flatMap((d) => {
+  if (!d.plant) return []
+  const half = (d.length ?? 1.8) / 2
+  return [
+    { at: [d.at[0] - 0.2, d.at[1] + d.plant * (half - 0.2)] as Vec2, y: DESK_TOP, kind: 'small' as const, scale: 0.42 }
+  ]
+})
 
 export const MEETING_ROOM = {
-  min: [2.2, 14.4] as Vec2,
-  max: [11.4, 17.7] as Vec2,
-  height: 2.5
+  // The room stands on a slab extension that juts 1 m past the main floor's front edge, like the reference.
+  min: [1.4, 13.0] as Vec2,
+  max: [11.6, 16.4] as Vec2,
+  height: 1.95,
+  /** The room stands on a low plinth. */
+  plinth: 0.12,
+  /** Centre of the meeting table, which runs along z. */
+  table: [8.8, 14.6] as Vec2
 } as const
 
 export const LOUNGE = {
-  rug: { at: [15.3, 12.4] as Vec2, size: [4.0, 4.4] as Vec2 },
-  sofa: { at: [14.2, 12.3] as Vec2 },
-  table: { at: [15.45, 12.2] as Vec2 },
+  rug: { at: [15.0, 12.1] as Vec2, size: [3.2, 3.4] as Vec2 },
+  sofa: { at: [14.0, 11.6] as Vec2 },
+  table: { at: [15.25, 12.2] as Vec2 },
   lamps: [
-    [16.7, 10.9],
-    [15.85, 2.4]
+    [15.6, 10.6],
+    [12.9, 1.9]
   ] as Vec2[]
 } as const
 
+const TABLE_PLANTS: PlantSpot[] = [
+  { at: [LOUNGE.table.at[0], LOUNGE.table.at[1] - 0.3], y: 0.42, kind: 'small', scale: 0.32 },
+  { at: [MEETING_ROOM.table[0], MEETING_ROOM.table[1]], y: MEETING_ROOM.plinth + 0.77, kind: 'small', scale: 0.3 }
+]
+
+export const PLANTS: PlantSpot[] = [...FLOOR_PLANTS, ...DESK_PLANTS, ...TABLE_PLANTS]
+
 /** Wall screens on the right wall (z = 0): x range, bottom and top heights. */
 export const WALL_SCREENS = {
-  graph: { x: [9.6, 14.2] as Vec2, y: [0.9, 2.9] as Vec2 },
+  graph: { x: [7.0, 11.4] as Vec2, y: [0.55, 2.8] as Vec2 },
   panels: [
-    { x: [5.0, 5.9] as Vec2, y: [1.3, 3.0] as Vec2, kind: 'code' as const },
-    { x: [7.3, 8.1] as Vec2, y: [1.0, 2.5] as Vec2, kind: 'media' as const },
-    { x: [8.3, 8.7] as Vec2, y: [0.8, 1.4] as Vec2, kind: 'media' as const },
-    { x: [15.5, 16.3] as Vec2, y: [0.9, 2.8] as Vec2, kind: 'log' as const },
-    { x: [2.4, 3.1] as Vec2, y: [1.3, 2.8] as Vec2, kind: 'log' as const },
-    { x: [6.3, 6.9] as Vec2, y: [1.2, 2.6] as Vec2, kind: 'code' as const },
-    { x: [16.8, 17.4] as Vec2, y: [1.4, 2.2] as Vec2, kind: 'media' as const }
+    { x: [4.15, 5.15] as Vec2, y: [1.25, 2.9] as Vec2, kind: 'code' as const },
+    { x: [5.8, 6.7] as Vec2, y: [1.05, 2.55] as Vec2, kind: 'media' as const },
+    { x: [11.7, 12.55] as Vec2, y: [0.45, 1.65] as Vec2, kind: 'log' as const },
+    { x: [1.7, 2.4] as Vec2, y: [1.4, 2.95] as Vec2, kind: 'log' as const },
+    { x: [2.5, 3.2] as Vec2, y: [1.3, 2.8] as Vec2, kind: 'code' as const }
   ]
 } as const
 
-export const BOOKSHELVES: { at: Vec2; rotation: number; width: number; height: number }[] = [
-  { at: [1.0, 0.02], rotation: 0, width: 1.6, height: 2.7 },
-  { at: [17.9, 4.9], rotation: 0, width: 1.4, height: 2.0 }
+export interface BookshelfSpot {
+  /** Floor position of the bookcase's back centre. */
+  at: Vec2
+  /** Rotation around y; at 0 the books face +z. */
+  rotation: number
+  width: number
+  height: number
+  /** Number of vertical bays (default 1). */
+  bays?: number
+  /** A warm table lamp on top. */
+  lamp?: boolean
+}
+
+export const BOOKSHELVES: BookshelfSpot[] = [
+  { at: [0.85, 0.02], rotation: 0, width: 1.6, height: CAP_HEIGHT - 0.05 },
+  { at: [15.7, 5.4], rotation: 0, width: 1.6, height: 1.5, bays: 2, lamp: true }
 ]
 
 /** Ceiling downlights (not modelled; the room is a cutaway) that pool warm light on the floor. */
-export const DOWNLIGHTS: Vec2[] = [
-  [5.6, 8.8],
-  [7.8, 5.7],
-  [5.5, 2.6],
-  [13.2, 5.0],
-  [12.4, 10.4],
-  [16.8, 8.0],
-  [15.3, 12.4],
-  [9.8, 8.0],
-  [10.5, 2.5],
-  [16.5, 3.0],
-  [3.4, 16.1],
-  [8.2, 16.1]
+export const DOWNLIGHTS: { at: Vec2; shadow?: true; dim?: true }[] = [
+  { at: [4.3, 8.3], shadow: true }, // Pip
+  { at: [7.2, 5.6], shadow: true }, // Rex
+  { at: [11.2, 3.9], shadow: true }, // Nova pair
+  { at: [11.5, 10.3], shadow: true }, // Axel pair
+  { at: [15.4, 8.35], shadow: true }, // Muse
+  { at: [14.8, 12.0], shadow: true }, // lounge
+  { at: [3.6, 2.0] }, // Sage
+  { at: [8.6, 7.8] },
+  { at: [9.0, 2.2] },
+  { at: [14.2, 3.0] },
+  { at: [7.4, 14.6], dim: true }, // meeting room: softer, so the table runner doesn't blow out
+  { at: [10.0, 14.6], dim: true }
 ]
 
 /** Dark rugs under the desk clusters: centre and size (x, z). */
 export const RUGS: { at: Vec2; size: Vec2 }[] = [
-  { at: [7.4, 4.95], size: [2.6, 3.9] },
-  { at: [12.85, 4.4], size: [2.6, 3.9] },
-  { at: [12.0, 11.2], size: [2.6, 3.9] }
+  { at: [4.3, 8.5], size: [2.6, 3.0] },
+  { at: [7.2, 5.7], size: [2.6, 3.0] },
+  { at: [11.0, 3.95], size: [2.8, 4.2] },
+  { at: [11.35, 10.2], size: [2.8, 3.8] },
+  { at: [15.2, 8.35], size: [2.3, 2.6] }
 ]

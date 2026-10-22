@@ -5,9 +5,10 @@ import { seededRandom } from './random'
 /** Tiles per texture side; one texture repeat covers TILES_PER_TEXTURE * TILE_SIZE metres. */
 export const TILES_PER_TEXTURE = 4
 export const TILE_SIZE = 1.2
+export const TILE_PERIOD = TILES_PER_TEXTURE * TILE_SIZE
 
 const SIZE = 1024
-const GROUT = 3
+const GROUT = 2
 
 /** Tile textures repeated to cover a floor of `width` x `depth` metres. */
 export function makeTileTextures(width: number, depth: number): { map: THREE.Texture; roughnessMap: THREE.Texture } {
@@ -19,7 +20,7 @@ export function makeTileTextures(width: number, depth: number): { map: THREE.Tex
   const r = rough.getContext('2d') as CanvasRenderingContext2D
   const cell = SIZE / TILES_PER_TEXTURE
 
-  c.fillStyle = '#0c0c0d'
+  c.fillStyle = '#34373a' // thin, light seams
   c.fillRect(0, 0, SIZE, SIZE)
   r.fillStyle = '#d0d0d0'
   r.fillRect(0, 0, SIZE, SIZE)
@@ -29,24 +30,26 @@ export function makeTileTextures(width: number, depth: number): { map: THREE.Tex
       const x = tx * cell + GROUT / 2
       const y = ty * cell + GROUT / 2
       const w = cell - GROUT
-      const tone = 78 + rand() * 18
+      // Cool slate grey; the warm lights bring it back to neutral.
+      const tone = 68 + rand() * 12
       const grad = c.createLinearGradient(x, y, x + w, y + w)
-      grad.addColorStop(0, `rgb(${tone + 3},${tone + 2},${tone})`)
-      grad.addColorStop(1, `rgb(${tone - 6},${tone - 6},${tone - 6})`)
+      grad.addColorStop(0, `rgb(${tone + 1},${tone + 5},${tone + 9})`)
+      grad.addColorStop(1, `rgb(${tone - 5},${tone - 1},${tone + 3})`)
       c.fillStyle = grad
       c.fillRect(x, y, w, w)
-      // Soft stone veining and mottling.
-      for (let i = 0; i < 220; i++) {
+      // Faint mottling only: the polished stone's variation comes from the reflections.
+      for (let i = 0; i < 90; i++) {
         const px = x + rand() * w
         const py = y + rand() * w
         const rad = 4 + rand() * 26
         const shade = rand() < 0.5 ? 0 : 255
-        c.fillStyle = `rgba(${shade},${shade},${shade},${0.012 + rand() * 0.02})`
+        c.fillStyle = `rgba(${shade},${shade},${shade},${0.006 + rand() * 0.01})`
         c.beginPath()
         c.arc(px, py, rad, 0, Math.PI * 2)
         c.fill()
       }
-      const gloss = 48 + rand() * 40
+      // Roughness about 0.26-0.39: broad soft sheens rather than pinpoint highlights.
+      const gloss = 66 + rand() * 34
       r.fillStyle = `rgb(${gloss},${gloss},${gloss})`
       r.fillRect(x, y, w, w)
       for (let i = 0; i < 60; i++) {
@@ -64,7 +67,7 @@ export function makeTileTextures(width: number, depth: number): { map: THREE.Tex
   const roughnessMap = new THREE.CanvasTexture(rough)
   for (const t of [map, roughnessMap]) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping
-    t.repeat.set(width / (TILES_PER_TEXTURE * TILE_SIZE), depth / (TILES_PER_TEXTURE * TILE_SIZE))
+    t.repeat.set(width / TILE_PERIOD, depth / TILE_PERIOD)
     t.anisotropy = 8
   }
   return { map, roughnessMap }

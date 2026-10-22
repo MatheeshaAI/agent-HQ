@@ -6,7 +6,6 @@ import type { Vec3 } from './layout'
 export const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1)
 export const UNIT_PLANE = new THREE.PlaneGeometry(1, 1)
 export const UNIT_CYLINDER = new THREE.CylinderGeometry(0.5, 0.5, 1, 24)
-export const UNIT_SPHERE = new THREE.SphereGeometry(0.5, 24, 16)
 
 type MeshProps = Omit<ThreeElements['mesh'], 'scale' | 'position'>
 
@@ -54,4 +53,12 @@ export function Cylinder({ radius, height, at, material, shadows = true, ...rest
       {...rest}
     />
   )
+}
+
+/** A box whose top and bottom UVs repeat once per `period` metres, so a tiling texture keeps its scale. */
+export function tiledBoxGeometry(size: Vec3, period: number): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(...size)
+  const uv = g.getAttribute('uv') as THREE.BufferAttribute
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * size[0]) / period, (uv.getY(i) * size[2]) / period)
+  return g
 }

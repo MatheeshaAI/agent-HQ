@@ -15,10 +15,10 @@
   display: flex;
   align-items: center;
   height: 46px;
-  padding: 0 9px 0 16px;
+  padding: 0 9px 0 13px;
   border-radius: 10px;
-  color: #e3e5e8;
-  font-size: 12.5px;
+  color: #f3f5f8;
+  font-size: 12px;
   font-weight: 500;
   text-align: left;
   border: 1px solid transparent;
@@ -31,12 +31,14 @@
 
 .icon {
   flex: none;
-  color: #a7b6cb;
+  color: #b6c1d4;
+  /* Bolder outline for the lucide icons (Tasks, Graph); the solid glyphs set their own strokes */
+  stroke-width: 2.3px;
 }
 
 .label {
   flex: 1;
-  margin-left: 13px;
+  margin-left: 11px;
 }
 
 .active {
@@ -56,15 +58,6 @@
   border-radius: 2px;
   background: #45a1e2;
   box-shadow: 0 0 10px rgba(69, 161, 226, 0.8);
-}
-
-.filled {
-  fill: currentColor;
-  fill-opacity: 0.4;
-}
-
-.active .filled {
-  fill-opacity: 0.85;
 }
 
 .active .icon {

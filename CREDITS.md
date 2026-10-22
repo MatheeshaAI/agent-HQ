@@ -13,4 +13,4 @@ Fonts: Inter (via `@fontsource/inter`), © The Inter Project Authors, SIL Open F
 
 All other textures in the 3D office (floor tiles, rug, walnut grain, screen content, signage, the knowledge-graph wall) are generated procedurally at runtime.
 
-The in-app models were modified at runtime only: the avatar's hat is removed, its clothing re-coloured and its pose set to seated; the plant's fireflies and lights are dropped, its pot re-coloured and its leaves stretched; the vase's transmission glass is replaced by a simple transparent material.
+The in-app models were modified at runtime only: the avatar's hat is removed, its clothing, skin and hair re-coloured (with a procedural hair cap) and its pose set to seated; only the plant's leaves are used, re-coloured and set on procedural planters (stretched upwards for the rubber-plant accents), while its pot, soil, fireflies and lights are dropped; the vase's transmission glass is replaced by a simple transparent material. The office palms are procedural.

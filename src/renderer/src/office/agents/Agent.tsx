@@ -1,10 +1,11 @@
-// One seated agent: a cloned, re-dressed Ready Player Me avatar posed at its desk, plus its floating card.
+// Seated people: a cloned, re-dressed Ready Player Me avatar posed at a desk. Agents add a hit volume and a
+// floating card; staff are non-interactive colleagues.
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import type { AgentId, AgentStatus } from '@shared/types'
+import type { AgentId, AgentState, AgentStatus } from '@shared/types'
 import { rigSeated } from './avatarRig'
 import AgentCard from './AgentCard'
 import { CHAIR_SEAT_HEIGHT } from '../furniture/chairGeometry'
@@ -12,24 +13,33 @@ import { UNIT_BOX } from '../primitives'
 
 export const AVATAR_URL = './models/avatar.glb'
 
-/** Dark business clothing with a little variation per agent, like the people in the reference. */
-const OUTFITS: Record<AgentId, { top: string; bottom: string; hair: string }> = {
-  pip: { top: '#161a24', bottom: '#15171c', hair: '#1a1410' },
-  sage: { top: '#111214', bottom: '#121316', hair: '#2a1d14' },
-  rex: { top: '#1b1d22', bottom: '#17181b', hair: '#0f0d0c' },
-  nova: { top: '#141a28', bottom: '#14161b', hair: '#3a2a1e' },
-  axel: { top: '#121315', bottom: '#101113', hair: '#16110d' },
-  muse: { top: '#17191e', bottom: '#14151a', hair: '#24180f' }
+interface Outfit {
+  top: string
+  bottom: string
+  hair: string
 }
 
+/** Near-black suits with a slight navy variation and near-black hair, like the people in the reference. */
+const OUTFITS: Record<AgentId, Outfit> = {
+  pip: { top: '#0a0d14', bottom: '#070708', hair: '#0d0b0a' },
+  sage: { top: '#08090b', bottom: '#070708', hair: '#110e0c' },
+  rex: { top: '#0b0c0f', bottom: '#070708', hair: '#0a0a0a' },
+  nova: { top: '#090c14', bottom: '#070708', hair: '#15110e' },
+  axel: { top: '#08090c', bottom: '#070708', hair: '#0c0b0a' },
+  muse: { top: '#0a0b0e', bottom: '#070708', hair: '#120f0c' }
+}
+
+/** Outfit for the non-interactive colleagues at the shared benches. */
+const STAFF_OUTFIT: Outfit = { top: '#0a0c12', bottom: '#070708', hair: '#0b0a09' }
+
 const CLOTHING = new Set(['Wolf3D_Outfit_Top', 'Wolf3D_Outfit_Bottom', 'Wolf3D_Outfit_Footwear'])
+const SKIN = new Set(['Wolf3D_Skin', 'Wolf3D_Body'])
 
 type Disposable = { dispose(): void }
 
 /** Re-dresses the clone; returns the materials it created so the caller can dispose them. */
-function dress(root: THREE.Object3D, id: AgentId): Disposable[] {
+function dress(root: THREE.Object3D, outfit: Outfit): Disposable[] {
   const owned: Disposable[] = []
-  const outfit = OUTFITS[id]
   const remove: THREE.Object3D[] = []
   root.traverse((o) => {
     const mesh = o as THREE.SkinnedMesh
@@ -41,16 +51,32 @@ function dress(root: THREE.Object3D, id: AgentId): Disposable[] {
     }
     mesh.castShadow = true
     mesh.receiveShadow = true
+    if (SKIN.has(material.name)) {
+      // Skin stays in shadow in the reference: darker, and not lifted by the environment.
+      const skin = material.clone()
+      skin.color.multiplyScalar(0.75)
+      skin.roughness = 0.7
+      skin.envMapIntensity = 0.5
+      mesh.material = skin
+      owned.push(skin)
+      return
+    }
     if (!CLOTHING.has(material.name)) return
-    const dressed = material.clone()
-    dressed.map = null
-    dressed.metalnessMap = null
-    dressed.roughnessMap = null
-    dressed.metalness = 0
-    dressed.roughness = material.name === 'Wolf3D_Outfit_Footwear' ? 0.35 : 0.78
-    dressed.color.set(
-      material.name === 'Wolf3D_Outfit_Top' ? outfit.top : material.name === 'Wolf3D_Outfit_Bottom' ? outfit.bottom : '#0b0b0c'
-    )
+    // Near-black cloth whose faint highlights read cool navy under the warm downlights, like the reference's
+    // suits lit by their screens; the normal map keeps the folds.
+    const dressed = new THREE.MeshPhysicalMaterial({
+      name: material.name,
+      normalMap: material.normalMap,
+      roughness: material.name === 'Wolf3D_Outfit_Top' ? 0.6 : material.name === 'Wolf3D_Outfit_Footwear' ? 0.35 : 0.78,
+      specularColor: '#7d93c4',
+      envMapIntensity: 0.4,
+      color:
+        material.name === 'Wolf3D_Outfit_Top'
+          ? outfit.top
+          : material.name === 'Wolf3D_Outfit_Bottom'
+            ? outfit.bottom
+            : '#0b0b0c'
+    })
     mesh.material = dressed
     owned.push(dressed)
   })
@@ -58,21 +84,77 @@ function dress(root: THREE.Object3D, id: AgentId): Disposable[] {
   return owned
 }
 
-/** Short, neat hair: an ellipsoid shell on the head bone (the bundled avatar is bald under its hat). */
+/**
+ * Short, neat hair: an ellipsoid cap on the head bone (the bundled avatar is bald under its hat), sized to
+ * cover the whole scalp and reach the upper forehead.
+ */
 function addHair(root: THREE.Object3D, color: string): Disposable[] {
   const head = root.getObjectByName('Head') as THREE.Bone
   root.updateMatrixWorld(true)
   const hair = new THREE.Mesh(
-    new THREE.SphereGeometry(0.5, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.56),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
+    new THREE.SphereGeometry(0.5, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.6),
+    new THREE.MeshPhysicalMaterial({
+      color,
+      roughness: 0.75,
+      sheen: 0.15,
+      sheenColor: '#2a2c30',
+      specularColor: '#9aa6bd'
+    })
   )
   hair.castShadow = true
-  hair.scale.set(0.185, 0.2, 0.21)
+  hair.scale.set(0.208, 0.208, 0.256)
   const inv = head.getWorldQuaternion(new THREE.Quaternion()).invert()
-  hair.quaternion.copy(inv).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.25, 0, 0)))
-  hair.position.copy(head.worldToLocal(new THREE.Vector3(0, 1.745, -0.012)))
+  hair.quaternion.copy(inv).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.3, 0, 0)))
+  hair.position.copy(head.worldToLocal(new THREE.Vector3(0, 1.738, 0.012)))
   head.add(hair)
   return [hair.geometry, hair.material as THREE.Material]
+}
+
+interface AvatarBodyProps {
+  outfit: Outfit
+  state: AgentState
+  /** Rotation around y; the avatar faces +z at 0. */
+  facing: number
+  phase: number
+}
+
+/** A cloned, re-dressed Ready Player Me avatar posed in its chair and animated by state. */
+function AvatarBody({ outfit, state, facing, phase }: AvatarBodyProps): JSX.Element {
+  const { scene } = useGLTF(AVATAR_URL, false, false)
+  const { avatar, rig, owned } = useMemo(() => {
+    const avatar = cloneSkinned(scene)
+    const owned = [...dress(avatar, outfit), ...addHair(avatar, outfit.hair)]
+    const rig = rigSeated(avatar)
+    avatar.position.y = Math.max(CHAIR_SEAT_HEIGHT + 0.07, rig.legReach) - rig.hipsY
+    return { avatar, rig, owned }
+  }, [scene, outfit])
+  // Textures and the remaining materials belong to the GLTF cache and are shared by every clone.
+  useEffect(() => () => owned.forEach((o) => o.dispose()), [owned])
+
+  const current = useRef(state)
+  current.current = state
+  useFrame(({ clock }) => rig.update(current.current, clock.elapsedTime, phase))
+
+  return (
+    <group rotation={[0, facing, 0]}>
+      <primitive object={avatar} />
+    </group>
+  )
+}
+
+interface StaffProps {
+  seat: [number, number]
+  facing: number
+  phase: number
+}
+
+/** A colleague working at a shared bench: same rig, always typing, no card and no pointer events. */
+export function Staff({ seat, facing, phase }: StaffProps): JSX.Element {
+  return (
+    <group position={[seat[0], 0, seat[1]]}>
+      <AvatarBody outfit={STAFF_OUTFIT} state="working" facing={facing} phase={phase} />
+    </group>
+  )
 }
 
 interface AgentProps {
@@ -85,22 +167,8 @@ interface AgentProps {
   onClick?: (id: AgentId) => void
 }
 
+/** One agent at its desk: the avatar, an invisible hit volume and its floating card. */
 export default function Agent({ status, seat, facing, phase, onClick }: AgentProps): JSX.Element {
-  const { scene } = useGLTF(AVATAR_URL, false, false)
-  const { avatar, rig, owned } = useMemo(() => {
-    const avatar = cloneSkinned(scene)
-    const owned = [...dress(avatar, status.id), ...addHair(avatar, OUTFITS[status.id].hair)]
-    const rig = rigSeated(avatar)
-    avatar.position.y = Math.max(CHAIR_SEAT_HEIGHT + 0.07, rig.legReach) - rig.hipsY
-    return { avatar, rig, owned }
-  }, [scene, status.id])
-  // Textures and the remaining materials belong to the GLTF cache and are shared by every clone.
-  useEffect(() => () => owned.forEach((o) => o.dispose()), [owned])
-
-  const state = useRef(status.state)
-  state.current = status.state
-  useFrame(({ clock }) => rig.update(state.current, clock.elapsedTime, phase))
-
   const handleClick = (e: ThreeEvent<MouseEvent>): void => {
     e.stopPropagation()
     onClick?.(status.id)
@@ -112,9 +180,7 @@ export default function Agent({ status, seat, facing, phase, onClick }: AgentPro
 
   return (
     <group position={[seat[0], 0, seat[1]]}>
-      <group rotation={[0, facing, 0]}>
-        <primitive object={avatar} />
-      </group>
+      <AvatarBody outfit={OUTFITS[status.id]} state={status.state} facing={facing} phase={phase} />
       {/* Invisible hit volume: raycasting a box is far cheaper than a skinned mesh on every pointer move. */}
       <mesh
         geometry={UNIT_BOX}

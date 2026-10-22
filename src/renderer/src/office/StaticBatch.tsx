@@ -19,6 +19,7 @@ interface Bucket {
   castShadow: boolean
   receiveShadow: boolean
   renderOrder: number
+  layers: number
   parts: Part[]
 }
 
@@ -41,7 +42,10 @@ function bakedGeometry({ mesh, group }: Part, toRoot: THREE.Matrix4): THREE.Buff
     const { itemSize } = attribute
     const start = group ? group.start * itemSize : 0
     const end = group ? (group.start + group.count) * itemSize : attribute.array.length
-    geometry.setAttribute(name, new THREE.BufferAttribute(attribute.array.slice(start, end), itemSize, attribute.normalized))
+    geometry.setAttribute(
+      name,
+      new THREE.BufferAttribute(attribute.array.slice(start, end), itemSize, attribute.normalized)
+    )
   }
   geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRoot, mesh.matrixWorld))
   return geometry
@@ -73,10 +77,17 @@ export default function StaticBatch({ children }: { children: ReactNode }): JSX.
       const attributes = KEPT_ATTRIBUTES.filter((a) => a in o.geometry.attributes).join(',')
       const keys: string[] = []
       for (const [material, part] of partsOf(o)) {
-        const key = `${material.uuid}|${o.castShadow}|${o.receiveShadow}|${o.renderOrder}|${attributes}`
+        const key = `${material.uuid}|${o.castShadow}|${o.receiveShadow}|${o.renderOrder}|${o.layers.mask}|${attributes}`
         let bucket = buckets.get(key)
         if (!bucket) {
-          bucket = { material, castShadow: o.castShadow, receiveShadow: o.receiveShadow, renderOrder: o.renderOrder, parts: [] }
+          bucket = {
+            material,
+            castShadow: o.castShadow,
+            receiveShadow: o.receiveShadow,
+            renderOrder: o.renderOrder,
+            layers: o.layers.mask,
+            parts: []
+          }
           buckets.set(key, bucket)
         }
         bucket.parts.push(part)
@@ -100,6 +111,7 @@ export default function StaticBatch({ children }: { children: ReactNode }): JSX.
       mesh.castShadow = bucket.castShadow
       mesh.receiveShadow = bucket.receiveShadow
       mesh.renderOrder = bucket.renderOrder
+      mesh.layers.mask = bucket.layers
       mesh.raycast = () => undefined // static decoration never takes pointer events
       group.add(mesh)
       merged.push(mesh)

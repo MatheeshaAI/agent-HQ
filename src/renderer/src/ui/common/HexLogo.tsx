@@ -1,24 +1,55 @@
-/** The Agent HQ mark: a glossy blue hexagon ring, drawn as SVG so it stays crisp at any scale. */
+type Point = [number, number]
+
+/** Pointy-top hexagon corners around (18, 21), clockwise from the top. */
+function hexagon(radius: number): Point[] {
+  return [0, 1, 2, 3, 4, 5].map((i) => {
+    const angle = ((i * 60 - 90) * Math.PI) / 180
+    return [18 + radius * Math.cos(angle), 21 + radius * Math.sin(angle)]
+  })
+}
+
+const points = (corners: Point[]): string => corners.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ')
+
+const LIGHT_ANGLE = -125 // degrees: the key light sits to the upper left
+const DARK: Point3 = [26, 79, 158]
+const LIT: Point3 = [127, 203, 255]
+type Point3 = [number, number, number]
+
+/** Shade of a facet whose surface faces `normal` degrees, between DARK and LIT. */
+function shade(normal: number): string {
+  const t = (Math.cos(((normal - LIGHT_ANGLE) * Math.PI) / 180) + 1) / 2
+  const rgb = DARK.map((d, i) => Math.round(d + (LIT[i] - d) * t))
+  return `rgb(${rgb.join(',')})`
+}
+
+/** A band of six facets between two hexagons; edge i runs from corner i to corner i+1. */
+function bevel(outer: Point[], inner: Point[], facing: 'out' | 'in'): { points: string; fill: string }[] {
+  return outer.map((corner, i) => {
+    const next = (i + 1) % 6
+    const normal = -60 + i * 60 + (facing === 'in' ? 180 : 0)
+    return { points: points([corner, outer[next], inner[next], inner[i]]), fill: shade(normal) }
+  })
+}
+
+const OUTER = hexagon(20.4)
+const HOLE = hexagon(8.2)
+const FACETS = [...bevel(OUTER, hexagon(17.6), 'out'), ...bevel(hexagon(10.6), HOLE, 'in')]
+
+/** The Agent HQ mark: a bevelled blue hexagon ring around a dark hole, drawn as SVG so it stays crisp at any scale. */
 export function HexLogo({ size = 42 }: { size?: number }): JSX.Element {
-  // Pointy-top hexagons; outer ring 36x42, inner cut-out at 52% scale.
-  const outer = '18,0.6 35.4,10.6 35.4,31.4 18,41.4 0.6,31.4 0.6,10.6'
-  const inner = '18,11.2 26.6,16.1 26.6,25.9 18,30.8 9.4,25.9 9.4,16.1'
   return (
     <svg width={(size * 36) / 42} height={size} viewBox="0 0 36 42" aria-hidden>
       <defs>
         <linearGradient id="hq-hex-face" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7fd3ff" />
-          <stop offset="0.4" stopColor="#3a98f2" />
-          <stop offset="1" stopColor="#1a5cc8" />
-        </linearGradient>
-        <linearGradient id="hq-hex-inner" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#01040f" />
-          <stop offset="1" stopColor="#06193d" />
+          <stop offset="0" stopColor="#4aa3f0" />
+          <stop offset="1" stopColor="#1d5fb8" />
         </linearGradient>
       </defs>
-      <polygon points={outer} fill="url(#hq-hex-face)" stroke="#8fd3ff" strokeOpacity="0.55" strokeWidth="0.8" strokeLinejoin="round" />
-      <polygon points="18,0.6 35.4,10.6 18,21 0.6,10.6" fill="#ffffff" opacity="0.12" />
-      <polygon points={inner} fill="url(#hq-hex-inner)" stroke="#0e3d82" strokeWidth="1" strokeLinejoin="round" />
+      <polygon points={points(OUTER)} fill="url(#hq-hex-face)" />
+      {FACETS.map((facet) => (
+        <polygon key={facet.points} points={facet.points} fill={facet.fill} stroke={facet.fill} strokeWidth="0.25" />
+      ))}
+      <polygon points={points(HOLE)} fill="#02060c" />
     </svg>
   )
 }

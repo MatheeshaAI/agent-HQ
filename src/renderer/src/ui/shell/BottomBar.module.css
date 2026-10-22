@@ -55,7 +55,7 @@
   height: 44px;
   border-radius: 9px;
   color: #eef4ff;
-  background: linear-gradient(160deg, #13427a 0%, #0c305a 55%, #0b2a52 100%);
+  background: linear-gradient(160deg, #1f4170 0%, #163764 55%, #112f58 100%);
   box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.18), 0 2px 10px rgba(12, 48, 90, 0.5);
 }
 
@@ -72,9 +72,9 @@
 .statusPill {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   height: 24px;
-  padding: 0 13px 0 9px;
+  padding: 0 11px 0 12px;
   border-radius: 12px;
   font-size: 11.5px;
   font-weight: 400;
@@ -82,18 +82,15 @@
   border: 1px solid;
 }
 
+/* Solid status dot inside a soft halo of the pill's tone */
 .ringDot {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 11px;
-  height: 11px;
   border-radius: 50%;
-  border: 1.5px solid currentColor;
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, currentColor 24%, transparent);
 }
 
 .statusPill_green {
-  color: #7fc9a9;
+  color: #86d9b2;
   background: #0f1c1f;
   border-color: #172421;
 }
@@ -176,12 +173,12 @@
   align-items: center;
   flex: 1;
   min-width: 160px;
-  height: 35px;
+  height: 42px;
   margin-left: 46px;
-  padding: 0 11px 0 14px;
-  border-radius: 10px;
-  background: #0b1018;
-  border: 1px solid #1a2029;
+  padding: 0 11px 0 15px;
+  border-radius: 11px;
+  background: #0e141c;
+  border: 1px solid #18202b;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -292,28 +289,24 @@
   align-items: center;
   flex: 1;
   min-width: 0;
-  padding: 0 0 20px 30px;
+  padding: 0 0 20px 28px;
   overflow: hidden;
 }
 
 .hint {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #bcc1c9;
+  gap: 11px;
+  color: #e3e6ec;
   font-size: 11px;
   white-space: nowrap;
 }
 
-.hint + .hint::before {
-  content: '';
-  width: 1px;
-  height: 16px;
-  margin: 0 18px;
-  background: #1a1f27;
+.hint + .hint {
+  margin-left: 36px;
 }
 
 .hintIcon {
   flex: none;
-  color: #b4bdd0;
+  color: #c3cbe0;
 }

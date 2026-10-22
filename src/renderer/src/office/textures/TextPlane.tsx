@@ -40,7 +40,7 @@ function draw(canvas: HTMLCanvasElement, lines: TextLine[]): void {
     const y = line.y * canvas.height
     if (line.glow) {
       ctx.shadowColor = line.glow
-      ctx.shadowBlur = px * 0.5
+      ctx.shadowBlur = px * 0.2
     }
     ctx.fillStyle = line.color
     ctx.fillText(line.text, canvas.width / 2, y)

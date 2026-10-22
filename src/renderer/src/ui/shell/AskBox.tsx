@@ -54,7 +54,7 @@ export function AskBox(): JSX.Element {
         aria-label="Ask the wiki a question"
       />
       <button type="submit" className={styles.send} disabled={!question.trim() || state?.status === 'loading'} aria-label="Ask">
-        <SendHorizontal size={19} strokeWidth={1.8} />
+        <SendHorizontal size={20} strokeWidth={1.8} />
       </button>
     </form>
   )

@@ -1,6 +1,6 @@
-import { FileText, MessageCircleMore, Share2, type LucideIcon } from 'lucide-react'
 import { useSnapshot } from '../../state/snapshot'
 import { HexLogo } from '../common/HexLogo'
+import { ChatGlyph, PageGlyph, ShareGlyph, type IconComponent } from '../common/glyphs'
 import { WindowControls } from './WindowControls'
 import { UrlBar } from './UrlBar'
 import { UserMenu } from './UserMenu'
@@ -19,9 +19,9 @@ export function TopBar(): JSX.Element {
         </div>
       </div>
       <div className={styles.stats}>
-        <StatChip icon={FileText} value={stats.pages} label="Total Pages" />
-        <StatChip icon={MessageCircleMore} value={stats.topics} label="Topics" />
-        <StatChip icon={Share2} value={stats.sources} label="Sources" />
+        <StatChip icon={PageGlyph} value={stats.pages} label="Total Pages" />
+        <StatChip icon={ChatGlyph} value={stats.topics} label="Topics" />
+        <StatChip icon={ShareGlyph} value={stats.sources} label="Sources" />
       </div>
       <UrlBar />
       <div className={`${styles.system} ${online ? styles.systemOnline : styles.systemOffline}`} role="status">
@@ -33,10 +33,16 @@ export function TopBar(): JSX.Element {
   )
 }
 
-function StatChip({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }): JSX.Element {
+interface StatChipProps {
+  icon: IconComponent
+  value: number
+  label: string
+}
+
+function StatChip({ icon: Icon, value, label }: StatChipProps): JSX.Element {
   return (
     <div className={styles.stat}>
-      <Icon size={20} strokeWidth={1.9} className={styles.statIcon} />
+      <Icon size={22} className={styles.statIcon} />
       <div>
         <div className={styles.statValue}>{value.toLocaleString()}</div>
         <div className={styles.statLabel}>{label}</div>

@@ -5,7 +5,7 @@ import { useSnapshot } from '../../state/snapshot'
 import { navigation } from '../../state/navigation'
 import { formatClock, formatRelative, useNow } from '../../state/clock'
 import { tasksForDisplay, type Tone } from '../../state/derived'
-import { AGENT_ICONS } from '../common/icons'
+import { AGENT_ICONS, AGENT_TONES } from '../common/icons'
 import { IconTile } from '../common/IconTile'
 import { StatusChip } from '../common/StatusDot'
 import { EmptyState } from '../common/EmptyState'
@@ -120,7 +120,7 @@ function TaskRow({ task }: { task: TaskItem }): JSX.Element {
       </td>
       <td>
         <div className={styles.cellAgent}>
-          <IconTile icon={AGENT_ICONS[task.agent]} size={26} tone={task.agent === 'muse' ? 'indigo' : 'teal'} />
+          <IconTile icon={AGENT_ICONS[task.agent]} size={26} tone={AGENT_TONES[task.agent]} />
           <div>
             <div>{agent?.name ?? task.agent}</div>
             <div className={styles.muted}>{agent?.role}</div>

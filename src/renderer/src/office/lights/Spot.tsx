@@ -17,7 +17,7 @@ interface SpotProps {
 export default function Spot({
   from,
   to,
-  color = '#ffc98f',
+  color = '#ffb46e',
   intensity,
   angle = 0.6,
   penumbra = 0.85,
@@ -43,6 +43,8 @@ export default function Spot({
         castShadow={castShadow}
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
+        shadow-radius={6}
       />
       <object3D ref={target} position={to as [number, number, number]} />
     </>

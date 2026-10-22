@@ -34,21 +34,21 @@ type Bones = Record<BoneName, THREE.Bone>
 
 /** Model-space aim directions (model faces +z, its left is +x), applied parent-first. */
 const SEATED_AIMS: [BoneName, BoneName, [number, number, number]][] = [
-  ['Spine', 'Spine1', [0, 1, 0.1]],
-  ['Spine1', 'Spine2', [0, 1, 0.16]],
-  ['Spine2', 'Neck', [0, 1, 0.2]],
-  ['Neck', 'Head', [0, 1, 0.22]],
-  ['Head', 'HeadTop_End', [0, 1, 0.08]],
+  ['Spine', 'Spine1', [0, 1, 0.04]],
+  ['Spine1', 'Spine2', [0, 1, 0.08]],
+  ['Spine2', 'Neck', [0, 1, 0.1]],
+  ['Neck', 'Head', [0, 1, 0.12]],
+  ['Head', 'HeadTop_End', [0, 1, 0.04]],
   ['LeftUpLeg', 'LeftLeg', [0.14, -0.04, 1]],
   ['RightUpLeg', 'RightLeg', [-0.14, -0.04, 1]],
   ['LeftLeg', 'LeftFoot', [0.03, -1, 0.12]],
   ['RightLeg', 'RightFoot', [-0.03, -1, 0.12]],
   ['LeftFoot', 'LeftToeBase', [0, -0.35, 1]],
   ['RightFoot', 'RightToeBase', [0, -0.35, 1]],
-  ['LeftArm', 'LeftForeArm', [0.2, -0.82, 0.42]],
-  ['RightArm', 'RightForeArm', [-0.2, -0.82, 0.42]],
-  ['LeftForeArm', 'LeftHand', [-0.28, 0.06, 1]],
-  ['RightForeArm', 'RightHand', [0.28, 0.06, 1]],
+  ['LeftArm', 'LeftForeArm', [0.12, -0.9, 0.3]],
+  ['RightArm', 'RightForeArm', [-0.12, -0.9, 0.3]],
+  ['LeftForeArm', 'LeftHand', [-0.35, 0.04, 1]],
+  ['RightForeArm', 'RightHand', [0.35, 0.04, 1]],
   ['LeftHand', 'LeftHandMiddle1', [-0.1, -0.3, 1]],
   ['RightHand', 'RightHandMiddle1', [0.1, -0.3, 1]]
 ]
@@ -153,11 +153,11 @@ export function rigSeated(root: THREE.Object3D): SeatedRig {
         pose('LeftHand', Math.sin(t * 2.2 + phase) * 0.05, 0)
         pose('RightHand', 0, 0)
       } else {
-        // Idle and error: calm breathing, an occasional glance around.
-        const glance = state === 'error' ? 0.25 * Math.sin(t * 0.8 + phase) : 0.2 * Math.sin(t * 0.25 + phase)
-        pose('Spine1', breathe * 1.5 - 0.05, 0)
-        pose('Neck', 0, glance * 0.4)
-        pose('Head', -0.05, glance)
+        // Idle and error: upright, calm breathing, eyes on the screen with only a slight glance.
+        const glance = 0.06 * Math.sin(t * (state === 'error' ? 0.8 : 0.25) + phase)
+        pose('Spine1', breathe * 1.5, 0)
+        pose('Neck', 0, glance * 0.3)
+        pose('Head', 0, glance)
         pose('LeftForeArm', 0, 0)
         pose('RightForeArm', 0, 0)
         pose('LeftHand', 0, 0)

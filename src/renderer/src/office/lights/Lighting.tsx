@@ -1,5 +1,5 @@
-// Cinematic night lighting: a dim environment for reflections, a soft key light for shadows and
-// warm practical spots pooling light on the desk clusters and lounge.
+// Cinematic night lighting: almost no fill, so the floor stays near-black between the warm downlight pools
+// over the desk clusters and lounge; a dim environment for reflections and a weak key light for soft shadows.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -38,8 +38,8 @@ function KeyLight(): JSX.Element {
       <directionalLight
         ref={light}
         position={[W + 4, 12, D * 0.6]}
-        intensity={0.9}
-        color="#ffe2c4"
+        intensity={0.35}
+        color="#ffd2a8"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0003}
@@ -58,14 +58,24 @@ function KeyLight(): JSX.Element {
 }
 
 export default function Lighting(): JSX.Element {
-  useRoomEnvironment(0.55)
+  useRoomEnvironment(0.35)
 
   return (
     <>
-      <hemisphereLight args={['#8fa6d6', '#1b130c', 0.35]} />
+      <hemisphereLight args={['#6a7c99', '#1a120b', 0.45]} />
       <KeyLight />
-      {DOWNLIGHTS.map(([x, z]) => (
-        <Spot key={`${x},${z}`} from={[x, 4.6, z]} to={[x, 0, z]} intensity={170} angle={0.6} />
+      {DOWNLIGHTS.map(({ at: [x, z], shadow, dim }) => (
+        <Spot
+          key={`${x},${z}`}
+          from={[x, 6.5, z]}
+          to={[x, 0, z]}
+          color="#ffcf9e"
+          intensity={dim ? 450 : 880}
+          angle={0.45}
+          penumbra={0.6}
+          distance={12}
+          castShadow={shadow}
+        />
       ))}
     </>
   )

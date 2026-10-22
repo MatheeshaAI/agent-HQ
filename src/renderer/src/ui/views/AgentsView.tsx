@@ -5,7 +5,7 @@ import { useSnapshot } from '../../state/snapshot'
 import { navigation, useNavigation } from '../../state/navigation'
 import { formatRelative, useNow } from '../../state/clock'
 import { activityFor, agentStateLabel, agentStateTone, onlineAgentCount, pendingTaskCount } from '../../state/derived'
-import { ACTIVITY_ICONS, AGENT_ICONS, activityTone } from '../common/icons'
+import { ACTIVITY_ICONS, AGENT_ICONS, AGENT_TONES, activityTone } from '../common/icons'
 import { IconTile } from '../common/IconTile'
 import { StatusChip } from '../common/StatusDot'
 import { EmptyState } from '../common/EmptyState'
@@ -54,7 +54,7 @@ function AgentCard({ agent, focused }: { agent: AgentStatus; focused: boolean })
   return (
     <article ref={ref} className={`${styles.agentCard} ${focused ? styles.agentCardFocused : ''}`}>
       <header className={styles.agentHead}>
-        <IconTile icon={AGENT_ICONS[agent.id]} tone={agent.state === 'error' ? 'red' : agent.id === 'muse' ? 'indigo' : 'teal'} size={42} shape="rounded" />
+        <IconTile icon={AGENT_ICONS[agent.id]} tone={agent.state === 'error' ? 'red' : AGENT_TONES[agent.id]} size={42} shape="rounded" />
         <div className={styles.agentIdentity}>
           <div className={styles.agentName}>{agent.name}</div>
           <div className={styles.agentRole}>{agent.role}</div>

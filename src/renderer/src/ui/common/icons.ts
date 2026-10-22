@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import type { ActivityKind, AgentId, SourceKind } from '@shared/types'
 
-export type TileTone = 'teal' | 'green' | 'indigo' | 'amber' | 'red' | 'slate'
+export type TileTone = 'teal' | 'green' | 'indigo' | 'amber' | 'red'
 
 /** The icon each agent wears on its name card in the office, reused everywhere the agent appears. */
 export const AGENT_ICONS: Record<AgentId, LucideIcon> = {
@@ -32,6 +32,16 @@ export const AGENT_ICONS: Record<AgentId, LucideIcon> = {
   nova: FlaskConical,
   axel: Search,
   muse: Library
+}
+
+/** Tile tint per agent: Muse writes in indigo, Pip's mail room is amber, the pipeline crew is teal. */
+export const AGENT_TONES: Record<AgentId, TileTone> = {
+  pip: 'amber',
+  sage: 'teal',
+  rex: 'teal',
+  nova: 'teal',
+  axel: 'teal',
+  muse: 'indigo'
 }
 
 export const ACTIVITY_ICONS: Record<ActivityKind, LucideIcon> = {

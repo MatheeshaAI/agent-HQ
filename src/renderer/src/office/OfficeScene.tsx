@@ -4,7 +4,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import type { AgentId, AgentStatus, GraphData } from '@shared/types'
-import { BOOKSHELVES, CAMERA, DESKS, FACING, PLANTS, SEAT_OFFSET } from './layout'
+import { BOOKSHELVES, CAMERA, DESKS, FACING, PLANTS, SEAT_OFFSET, type DeskSpot } from './layout'
 import { MaterialsContext, useOfficeMaterials } from './materials'
 import Room from './room/Room'
 import LeftWall from './room/LeftWall'
@@ -14,10 +14,12 @@ import Bookshelf from './furniture/Bookshelf'
 import Plants from './furniture/Plants'
 import MeetingRoom from './furniture/MeetingRoom'
 import Lounge from './furniture/Lounge'
-import Agent from './agents/Agent'
+import Extras from './furniture/Extras'
+import Agent, { Staff } from './agents/Agent'
 import Lighting from './lights/Lighting'
 import Effects from './Effects'
 import StaticBatch from './StaticBatch'
+import { NO_REFLECTION_LAYER } from './NoReflection'
 
 export interface OfficeSceneProps {
   agents: AgentStatus[]
@@ -42,6 +44,7 @@ function CameraRig(): null {
       tz + CAMERA.distance * Math.cos(elev) * Math.cos(yaw)
     )
     camera.lookAt(tx, ty, tz)
+    camera.layers.enable(NO_REFLECTION_LAYER)
     // Keep the whole office in view when the panel is narrower than the design aspect.
     const aspect = size.width / Math.max(1, size.height)
     const halfV = THREE.MathUtils.degToRad(CAMERA.fov / 2)
@@ -50,6 +53,14 @@ function CameraRig(): null {
     camera.updateProjectionMatrix()
   }, [camera, size])
   return null
+}
+
+/** Floor position of the seat at a desk. */
+function seatOf(desk: DeskSpot): [number, number] {
+  const s = Math.sin(desk.rotation)
+  const c = Math.cos(desk.rotation)
+  const shift = desk.seat ?? 0
+  return [desk.at[0] + c * SEAT_OFFSET + s * shift, desk.at[1] - s * SEAT_OFFSET + c * shift]
 }
 
 function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps): JSX.Element {
@@ -63,14 +74,16 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
         <LeftWall />
         <RightWall graph={graph} onOpenGraph={onOpenGraph} />
         {BOOKSHELVES.map((b, i) => (
-          <Bookshelf key={i} at={b.at} rotation={b.rotation} width={b.width} height={b.height} seed={i + 3} />
+          <Bookshelf key={i} {...b} seed={i + 3} />
         ))}
         <MeetingRoom />
         <Lounge />
+        <Extras />
         <Plants plants={PLANTS} />
         {DESKS.map((desk, i) => {
           const status = desk.agent ? byId.get(desk.agent) : undefined
-          const busy = status?.state === 'working' || status?.state === 'thinking'
+          // Staff are always busy; an agent's screens follow its state.
+          const busy = desk.staff === true || status?.state === 'working' || status?.state === 'thinking'
           return (
             <Desk
               key={i}
@@ -79,24 +92,24 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
               monitors={desk.monitors}
               busy={busy}
               seed={i + 1}
-              lamp={Boolean(desk.agent)}
+              length={desk.length}
+              seat={desk.seat}
+              plant={desk.plant}
             />
           )
         })}
       </StaticBatch>
       {DESKS.map((desk, i) => {
+        const facing = desk.rotation + FACING
+        if (desk.staff) return <Staff key={i} seat={seatOf(desk)} facing={facing} phase={i * 1.37} />
         const status = desk.agent ? byId.get(desk.agent) : undefined
         if (!status) return null
-        const seat: [number, number] = [
-          desk.at[0] + Math.cos(desk.rotation) * SEAT_OFFSET,
-          desk.at[1] - Math.sin(desk.rotation) * SEAT_OFFSET
-        ]
         return (
           <Agent
             key={status.id}
             status={status}
-            seat={seat}
-            facing={desk.rotation + FACING}
+            seat={seatOf(desk)}
+            facing={facing}
             phase={i * 1.37}
             onClick={onAgentClick}
           />
@@ -117,7 +130,7 @@ export default function OfficeScene(props: OfficeSceneProps): JSX.Element {
         shadows="soft"
         dpr={dpr}
         frameloop="always"
-        camera={{ fov: CAMERA.fov, near: 1, far: 100 }}
+        camera={{ fov: CAMERA.fov, near: 1, far: 160 }}
         gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
         style={{ background: '#000' }}
       >

@@ -37,8 +37,8 @@ if (process.env.CLICK_TEST) {
   // Click the graph wall screen, Pip's avatar and Axel's card, then report what the harness received.
   // Screen points come from fit_camera.py's projection of the layout.
   for (const [x, y] of [
-    [901, 228],
-    [322, 337]
+    [870, 246],
+    [259, 356]
   ]) {
     await page.mouse.move(x, y)
     await page.waitForTimeout(500)
