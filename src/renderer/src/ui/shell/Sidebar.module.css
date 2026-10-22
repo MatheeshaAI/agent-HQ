@@ -1,0 +1,86 @@
+.sidebar {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 17px 9px 0 4px;
+  background: #020305;
+  border-right: 1px solid #0b0e13;
+  border-top-right-radius: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 46px;
+  padding: 0 9px 0 16px;
+  border-radius: 10px;
+  color: #e3e5e8;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.icon {
+  flex: none;
+  color: #a7b6cb;
+}
+
+.label {
+  flex: 1;
+  margin-left: 13px;
+}
+
+.active {
+  color: #f5fbff;
+  background: linear-gradient(180deg, #13263f, #102037);
+  border-color: rgba(80, 140, 215, 0.22);
+  box-shadow: inset 0 1px 0 rgba(150, 200, 255, 0.06);
+}
+
+.active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: #45a1e2;
+  box-shadow: 0 0 10px rgba(69, 161, 226, 0.8);
+}
+
+.filled {
+  fill: currentColor;
+  fill-opacity: 0.4;
+}
+
+.active .filled {
+  fill-opacity: 0.85;
+}
+
+.active .icon {
+  color: #f2f7ff;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #5f96de;
+  color: #0b1a33;
+  font-size: 11px;
+  font-weight: 600;
+}

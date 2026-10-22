@@ -1,0 +1,82 @@
+.wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(30, 80, 140, 0.18), transparent 65%),
+    linear-gradient(180deg, #02060c, #010307);
+}
+
+.wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(80, 140, 220, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(80, 140, 220, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.hoverCard {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  max-width: 360px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(7, 11, 18, 0.92);
+  border: 1px solid #1d2735;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.hoverTitle {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoverMeta {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(7, 11, 18, 0.88);
+  border: 1px solid #1a2230;
+}
+
+.controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  color: var(--text-muted);
+}
+
+.controls button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}

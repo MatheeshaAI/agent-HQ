@@ -1,0 +1,21 @@
+import { FileUp, MousePointerClick, ScanEye, type LucideIcon } from 'lucide-react'
+import styles from './BottomBar.module.css'
+
+const HINTS: { icon: LucideIcon; text: string }[] = [
+  { icon: FileUp, text: 'Drop a file or drag a file onto the office to start a job.' },
+  { icon: ScanEye, text: 'Click the big wall screen for the graph view.' },
+  { icon: MousePointerClick, text: 'Click Muse to ask a question.' }
+]
+
+export function HintRow(): JSX.Element {
+  return (
+    <div className={styles.hints}>
+      {HINTS.map(({ icon: Icon, text }) => (
+        <div key={text} className={styles.hint}>
+          <Icon size={18} strokeWidth={1.8} className={styles.hintIcon} />
+          {text}
+        </div>
+      ))}
+    </div>
+  )
+}

@@ -1,0 +1,52 @@
+/* Design tokens measured from docs/reference.png (1536x1024). */
+:root {
+  --bg: #000;
+  --panel: #030508;
+  --panel-raised: #070a0f;
+  --panel-border: #121821;
+  --panel-border-strong: #1b2230;
+  --control: #0b1018;
+  --control-hover: #111824;
+  --control-border: #1a212c;
+  --divider: #0e1217;
+
+  --text: #e9ebef;
+  --text-strong: #ffffff;
+  --text-muted: #969ba6;
+  --text-faint: #868b94;
+  --text-dim: #5d6470;
+
+  --blue: #3b82f6;
+  --blue-soft: #5f96de;
+  --link: #4aa5dc;
+  --nav-active: #112239;
+  --nav-accent: #45a1e2;
+
+  --green: #22c55e;
+  --green-dot: #53e695;
+  --green-text: #8ad6b6;
+  --amber: #f59e0b;
+  --amber-text: #f2cf8a;
+  --red: #ef4444;
+  --red-text: #f7a1a1;
+  --teal: #5fd6dc;
+  --teal-tile: rgba(56, 178, 190, 0.17);
+  --indigo: #a5b4fc;
+  --indigo-tile: rgba(99, 102, 241, 0.2);
+
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --blur: blur(14px);
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'SF Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* Shell geometry */
+  --topbar-h: 80px;
+  --sidebar-w: 171px;
+  --rail-w: 304px;
+  --bottom-h: 147px;
+}
