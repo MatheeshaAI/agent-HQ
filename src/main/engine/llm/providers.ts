@@ -50,25 +50,33 @@ export async function listProviderModels(config: ProviderConfig): Promise<ModelO
 async function openAiCompatible<S extends z.ZodType>(config: ProviderConfig, system: string, prompt: string, schema: S, content: BetaContentBlockParam[] = []): Promise<string> {
   if (!config.apiKey) throw new LlmError(`Add an API key for ${config.providerId === 'openai' ? 'OpenAI' : 'OpenRouter'} in Settings`)
   const root = (config.baseUrl || (config.providerId === 'openai' ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1')).replace(/\/$/, '')
-  const requestBody = {
+  // Newer OpenAI models reject max_tokens and require max_completion_tokens; OpenRouter and
+  // custom base URLs speak the OpenAI-compatible max_tokens.
+  const official = config.providerId === 'openai' && (!config.baseUrl || /api\.openai\.com/.test(config.baseUrl))
+  const tokenParam = official ? 'max_completion_tokens' : 'max_tokens'
+  const baseBody: Record<string, unknown> = {
     model: config.model,
-    max_tokens: 16_000,
-      messages: [{ role: 'system', content: system }, { role: 'user', content: openAiContent(prompt, content) }],
+    messages: [{ role: 'system', content: system }, { role: 'user', content: openAiContent(prompt, content) }],
     response_format: { type: 'json_schema', json_schema: { name: 'agent_hq_result', strict: true, schema: z.toJSONSchema(schema) } }
   }
-  let response = await fetch(`${root}/chat/completions`, {
+  const post = (body: unknown): Promise<Response> => fetch(`${root}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify(body)
   })
+  let response = await post({ ...baseBody, [tokenParam]: 16_000 })
   let payload = await response.json().catch(() => ({})) as { choices?: Array<{ message?: { content?: string | null } }>; error?: { message?: string } }
-  if (!response.ok && response.status === 400 && /json_schema|response_format/i.test(payload.error?.message ?? '')) {
-    response = await fetch(`${root}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...requestBody, response_format: { type: 'json_object' } })
-    })
-    payload = await response.json().catch(() => ({})) as typeof payload
+  if (!response.ok && response.status === 400) {
+    const message = payload.error?.message ?? ''
+    // Retrying once with the fixes the error calls for: a weaker response format, and/or the
+    // other token parameter name.
+    const fix: Record<string, unknown> = {}
+    if (/json_schema|response_format/i.test(message)) fix.response_format = { type: 'json_object' }
+    if (/max_tokens|max_completion_tokens/.test(message)) fix[tokenParam === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens'] = 16_000
+    if (Object.keys(fix).length > 0) {
+      response = await post({ ...baseBody, ...fix })
+      payload = await response.json().catch(() => ({})) as typeof payload
+    }
   }
   if (!response.ok) throw new LlmError(payload.error?.message || `Provider request failed (${response.status})`)
   const text = payload.choices?.[0]?.message?.content
