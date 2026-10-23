@@ -152,7 +152,9 @@ function fullSnapshot(params: URLSearchParams): AppSnapshot {
       knowledgeDir: '/Users/matheesha/Agent HQ',
       apiKeySet: params.get('nokey') !== '1',
       model: 'claude-sonnet-4-5',
-      userName: 'Matheesha Sarathchandra'
+      userName: 'Matheesha Sarathchandra',
+      rooms: [{ id: 'main', name: 'Main', knowledgeDir: '/Users/matheesha/Agent HQ' }],
+      currentRoomId: 'main'
     },
     stats: { pages: 132, topics: 35, sources: 424 },
     agents: agents(),
