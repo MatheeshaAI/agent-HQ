@@ -55,8 +55,8 @@ try {
 
   // 2. Save a key in Settings; the failed source is retried automatically.
   await nav('Settings')
-  await page.getByPlaceholder('sk-ant-…').fill('sk-ant-test-key')
-  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByPlaceholder('Paste API key').fill('sk-ant-test-key')
+  await page.getByRole('button', { name: 'Save provider' }).click()
   await until(page, () => window.__last?.settings.apiKeySet === true, 20_000)
   check('API key saved (never shown)', !(await page.content()).includes('sk-ant-test-key'))
   await shot('02-settings.png')
