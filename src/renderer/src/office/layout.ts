@@ -56,7 +56,10 @@ export interface DeskSpot {
 }
 
 // Pairs of desks abut into one long bench, with their two people sitting towards the middle, like the reference.
-export const DESKS: DeskSpot[] = [
+/** Preview of the Personal room: `?personal` swaps the two staff benches for casual lounge corners. */
+export const PERSONAL = typeof location !== 'undefined' && (location.search.includes('personal') || localStorage.getItem('personal') === '1')
+
+const ALL_DESKS: DeskSpot[] = [
   { at: [3.65, 8.7], rotation: 0, agent: 'pip', monitors: 2, length: 2.4, seat: -0.5, plant: 1 },
   { at: [3.0, 2.0], rotation: 0, agent: 'sage', monitors: 2, plant: 1 },
   { at: [6.55, 5.9], rotation: 0, agent: 'rex', monitors: 3, length: 2.4, seat: -0.45, plant: 1 },
@@ -66,6 +69,7 @@ export const DESKS: DeskSpot[] = [
   { at: [10.85, 9.4], rotation: 0, staff: true, monitors: 1, seat: 0.35, plant: -1 },
   { at: [14.85, 8.35], rotation: 0, agent: 'muse', monitors: 1, plant: 1 }
 ]
+export const DESKS: DeskSpot[] = PERSONAL ? ALL_DESKS.filter((d) => !d.staff) : ALL_DESKS
 
 /** Seat offset from the desk centre (local +x), in the desk's local frame. */
 export const SEAT_OFFSET = 0.85
@@ -140,8 +144,17 @@ export const LOUNGE = {
   ] as Vec2[]
 } as const
 
+/** Extra casual seating corners, used in place of the staff benches in the Personal room. */
+export const EXTRA_LOUNGES: { rug: { at: Vec2; size: Vec2 }; sofa: Vec2; table: Vec2 }[] = PERSONAL
+  ? [
+      { rug: { at: [10.9, 9.6], size: [3.0, 3.2] }, sofa: [9.9, 9.4], table: [11.2, 9.5] },
+      { rug: { at: [10.6, 2.9], size: [3.0, 3.0] }, sofa: [9.6, 2.9], table: [10.9, 2.9] }
+    ]
+  : []
+
 const TABLE_PLANTS: PlantSpot[] = [
   { at: [LOUNGE.table.at[0], LOUNGE.table.at[1] - 0.3], y: 0.42, kind: 'small', scale: 0.32 },
+  ...EXTRA_LOUNGES.map((l) => ({ at: [l.table[0], l.table[1] - 0.3] as Vec2, y: 0.42, kind: 'small' as const, scale: 0.32 })),
   { at: [MEETING_ROOM.table[0], MEETING_ROOM.table[1]], y: MEETING_ROOM.plinth + 0.77, kind: 'small', scale: 0.3 }
 ]
 

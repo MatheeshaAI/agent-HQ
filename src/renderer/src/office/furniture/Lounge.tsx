@@ -4,7 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import * as THREE from 'three'
 import { Box, Cylinder } from '../primitives'
 import { useMat } from '../materials'
-import { LOUNGE, type Vec2 } from '../layout'
+import { EXTRA_LOUNGES, LOUNGE, type Vec2 } from '../layout'
 import { Rug } from '../room/Room'
 
 const CUSHION = new RoundedBoxGeometry(1, 1, 1, 4, 0.06)
@@ -122,6 +122,13 @@ export default function Lounge(): JSX.Element {
       <Rug at={rug.at} size={rug.size} />
       <Sofa at={sofa.at} />
       <CoffeeTable at={table.at} />
+      {EXTRA_LOUNGES.map((l) => (
+        <group key={`${l.sofa[0]},${l.sofa[1]}`}>
+          <Rug at={l.rug.at} size={l.rug.size} />
+          <Sofa at={l.sofa} />
+          <CoffeeTable at={l.table} />
+        </group>
+      ))}
       {lamps.map((l) => (
         <DrumLamp key={`${l[0]},${l[1]}`} at={l} />
       ))}
