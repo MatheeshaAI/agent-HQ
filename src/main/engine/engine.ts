@@ -15,6 +15,7 @@ import type { ModelOption } from '@shared/types'
 import { KnowledgeBase, type FolderChange } from './knowledgeBase'
 import type { Llm } from './llm/claude'
 import { createProvider, listProviderModels } from './llm/providers'
+import { ChatService } from './chat'
 import { askWiki } from './pipeline/ask'
 import { IngestQueue } from './pipeline/ingest'
 import { Janitor, janitorSummary } from './pipeline/janitor'
@@ -34,6 +35,8 @@ export interface EngineOptions {
   /** Receives every (throttled) snapshot */
   push: (snapshot: AppSnapshot) => void
   now?: () => number
+  /** How long a simulated chat reply takes (default 1200 ms) */
+  chatReplyDelayMs?: number
 }
 
 /**
@@ -47,11 +50,14 @@ export class Engine {
   private readonly llm: Llm
   private readonly janitor: Janitor
   private readonly queue: IngestQueue
+  /** Private messages and broadcasts to the agents (replies are simulated for now). */
+  readonly chat: ChatService
   private readonly now: () => number
   private fullCheck: Promise<JanitorReport> | null = null
 
   private constructor(options: EngineOptions) {
     this.now = options.now ?? Date.now
+    this.chat = new ChatService(this.now, options.chatReplyDelayMs ?? 1200)
     this.settings = new SettingsStore(options.dataDir, options.defaults, options.codec)
     this.state = new EngineState(this.settings.view(), options.push, this.now)
     this.llm = createProvider(() => ({

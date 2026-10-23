@@ -31,6 +31,9 @@ const api: AgentHqApi = {
   retrySource: (id) => invoke(IPC.retrySource, id),
 
   ask: (question) => invoke(IPC.ask, question),
+  chatSend: (agentId, text) => invoke(IPC.chatSend, agentId, text),
+  chatHistory: (agentId) => invoke(IPC.chatHistory, agentId),
+  broadcastSend: (text) => invoke(IPC.broadcastSend, text),
   runJanitor: () => invoke(IPC.runJanitor),
 
   listPages: () => invoke(IPC.listPages),

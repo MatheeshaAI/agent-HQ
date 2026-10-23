@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { X } from 'lucide-react'
+import type { AgentId } from '@shared/types'
 import { useSnapshot } from '../../state/snapshot'
 import { drawer, useDrawerAgent } from '../../state/drawer'
 import { chat, useChatHistory } from '../../state/chat'
+import { BroadcastDialog } from './BroadcastDialog'
 import { agentPresence, agentStateLabel, agentStateTone } from '../../state/derived'
 import { IDENTITIES } from '../../office/agents/identities'
 import { AgentPortrait } from '../common/AgentPortrait'
@@ -67,9 +69,14 @@ export function AgentDrawer(): JSX.Element | null {
   )
 }
 
-function Conversation({ agentId, name }: { agentId: Parameters<typeof chat.send>[0]; name: string }): JSX.Element {
+function Conversation({ agentId, name }: { agentId: AgentId; name: string }): JSX.Element {
   const messages = useChatHistory(agentId)
   const [text, setText] = useState('')
+  const [broadcasting, setBroadcasting] = useState(false)
+
+  useEffect(() => {
+    void chat.load(agentId)
+  }, [agentId])
   const listRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
@@ -81,7 +88,7 @@ function Conversation({ agentId, name }: { agentId: Parameters<typeof chat.send>
     e.preventDefault()
     const value = text.trim()
     if (!value) return
-    chat.send(agentId, value)
+    void chat.send(agentId, value)
     setText('')
   }
 
@@ -92,7 +99,11 @@ function Conversation({ agentId, name }: { agentId: Parameters<typeof chat.send>
       <ul ref={listRef} className={styles.messages} aria-live="polite">
         {messages.length === 0 && <li className={styles.empty}>No messages yet.</li>}
         {messages.map((m) => (
-          <li key={m.id} className={`${styles.message} ${m.from === 'user' ? styles.fromUser : styles.fromAgent}`}>
+          <li
+            key={m.id}
+            className={`${styles.message} ${m.from === 'user' ? styles.fromUser : styles.fromAgent} ${m.failed ? styles.failed : ''}`}
+          >
+            {m.channel === 'broadcast' && <span className={styles.tag}>Broadcast</span>}
             {m.text}
           </li>
         ))}
@@ -109,6 +120,10 @@ function Conversation({ agentId, name }: { agentId: Parameters<typeof chat.send>
           Send
         </button>
       </form>
+      <button className={styles.broadcast} onClick={() => setBroadcasting(true)}>
+        Broadcast to all agents
+      </button>
+      {broadcasting && <BroadcastDialog onClose={() => setBroadcasting(false)} />}
     </section>
   )
 }

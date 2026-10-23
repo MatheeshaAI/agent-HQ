@@ -169,6 +169,39 @@ export interface AskResult {
   error?: string
 }
 
+export interface ChatMessage {
+  id: string
+  from: 'user' | 'agent'
+  text: string
+  at: number
+  /** `private` = sent to this agent alone, `broadcast` = sent to all agents at once */
+  channel: 'private' | 'broadcast'
+  /** True while replies are placeholders (the agents are pipeline stages, not chat partners yet) */
+  simulated: boolean
+}
+
+/** One private exchange: what the user sent and the agent's reply. */
+export interface ChatExchange {
+  sent: ChatMessage
+  reply: ChatMessage
+}
+
+export interface BroadcastDelivery {
+  agent: AgentId
+  status: 'delivered' | 'failed'
+  error?: string
+  /** The broadcast and the agent's reply, as they now appear in that agent's history. */
+  sent?: ChatMessage
+  reply?: ChatMessage
+}
+
+export interface BroadcastResult {
+  at: number
+  text: string
+  /** One entry per agent, in the UI's order */
+  deliveries: BroadcastDelivery[]
+}
+
 export interface WikiPageContent {
   slug: string
   title: string
@@ -189,6 +222,12 @@ export interface AgentHqApi {
   retrySource(id: string): Promise<void>
 
   ask(question: string): Promise<AskResult>
+  /** Private message to one agent. Never reaches the other agents. */
+  chatSend(agentId: AgentId, text: string): Promise<ChatExchange>
+  /** Everything said to and by one agent (private messages and broadcasts), oldest first. */
+  chatHistory(agentId: AgentId): Promise<ChatMessage[]>
+  /** One message to all agents at once, with a delivery result per agent. */
+  broadcastSend(text: string): Promise<BroadcastResult>
   runJanitor(): Promise<JanitorReport>
 
   listPages(): Promise<WikiPageMeta[]>
@@ -218,6 +257,9 @@ export const IPC = {
   addNote: 'hq:addNote',
   retrySource: 'hq:retrySource',
   ask: 'hq:ask',
+  chatSend: 'chat:send',
+  chatHistory: 'chat:history',
+  broadcastSend: 'broadcast:send',
   runJanitor: 'hq:runJanitor',
   listPages: 'hq:listPages',
   readPage: 'hq:readPage',
