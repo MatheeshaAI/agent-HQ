@@ -2,12 +2,14 @@
 // Run through scripts/engine-test/run.mjs, which bundles this file and starts the fake API.
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
 import type { AppSnapshot, SourceItem } from '../../src/shared/types'
 import { Engine } from '../../src/main/engine/engine'
+import { spawnProgram } from '../../src/main/engine/llm/providers'
 import type { SecretCodec } from '../../src/main/engine/settings'
 import { parsePage, renderPage } from '../../src/main/engine/wiki/frontmatter'
 import { extractWikilinks } from '../../src/main/engine/wiki/links'
@@ -412,4 +414,39 @@ test('html to text and text splitting', () => {
   const parts = splitText('alpha beta. '.repeat(1000), 1000)
   assert.ok(parts.every((p) => p.length <= 1000))
   assert.equal(parts.join(' ').replace(/\s+/g, ' ').trim(), 'alpha beta. '.repeat(1000).trim())
+})
+
+/** `where` lists the shim only when `claude` can be started from the PATH. */
+function claudeOnPath(): boolean {
+  return process.platform === 'win32' && spawnSync('where', ['claude'], { stdio: 'ignore' }).status === 0
+}
+
+test('spawnProgram runs a .cmd file with quoted arguments and stdin on Windows', { skip: process.platform !== 'win32' }, async () => {
+  const script = join(ROOT, 'echo.cmd')
+  writeFileSync(script, '@echo off\r\necho ARG:%~1\r\nmore\r\n')
+  const child = spawnProgram(script, ['hello world'], { cwd: ROOT, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', (chunk: string) => { stdout += chunk })
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (chunk: string) => { stderr += chunk })
+  child.stdin.write('stdin marker')
+  child.stdin.end()
+  assert.equal(await new Promise((r) => child.once('close', r)), 0, stderr)
+  assert.ok(stdout.includes('ARG:hello world'), `batch argument missing: ${stdout}`)
+  assert.ok(stdout.includes('stdin marker'), `batch stdin missing: ${stdout}`)
+})
+
+test('spawnProgram runs the claude shim and prints a version', { skip: !claudeOnPath() }, async () => {
+  const child = spawnProgram('claude', ['--version'], { cwd: ROOT, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+  let output = ''
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', (chunk: string) => { output += chunk })
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (chunk: string) => { output += chunk })
+  child.stdin.end()
+  assert.equal(await new Promise((r) => child.once('close', r)), 0, output)
+  assert.match(output, /\d+\.\d+/, 'claude prints a version')
+  console.log(`claude --version via spawnProgram: ${output.trim()}`)
 })
