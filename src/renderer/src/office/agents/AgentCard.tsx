@@ -83,10 +83,12 @@ const CARD_ANCHOR_Y = 1.72
 
 interface AgentCardProps {
   status: AgentStatus
+  /** Shows a small voice indicator while the agent is producing a reply. */
+  speaking?: boolean
   onClick?: (id: AgentId) => void
 }
 
-export default function AgentCard({ status, onClick }: AgentCardProps): JSX.Element {
+export default function AgentCard({ status, speaking = false, onClick }: AgentCardProps): JSX.Element {
   const Icon = ICONS[status.id]
   const detail = `${status.role} · ${status.activity}`
   return (
@@ -106,6 +108,13 @@ export default function AgentCard({ status, onClick }: AgentCardProps): JSX.Elem
           <span className="hq-agent-card__state">
             <span className="hq-agent-card__dot" />
             {STATE_LABEL[status.state]}
+            {speaking && (
+              <span className="hq-agent-card__voice" role="img" aria-label="Speaking">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
           </span>
           <span className="hq-agent-card__role">
             {status.role} <span className="hq-agent-card__sep">·</span> {status.activity}

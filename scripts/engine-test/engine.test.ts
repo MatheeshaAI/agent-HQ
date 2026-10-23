@@ -8,6 +8,7 @@ import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
 import type { AppSnapshot, SourceItem } from '../../src/shared/types'
+import { ChatService } from '../../src/main/engine/chat'
 import { Engine } from '../../src/main/engine/engine'
 import { spawnProgram } from '../../src/main/engine/llm/providers'
 import type { SecretCodec } from '../../src/main/engine/settings'
@@ -483,4 +484,27 @@ test('spawnProgram runs the claude shim and prints a version', { skip: !claudeOn
   assert.equal(await new Promise((r) => child.once('close', r)), 0, output)
   assert.match(output, /\d+\.\d+/, 'claude prints a version')
   console.log(`claude --version via spawnProgram: ${output.trim()}`)
+})
+
+test('private chat reaches only the agent it names, and is marked simulated', async () => {
+  const chat = new ChatService(Date.now, 0)
+  const exchange = await chat.send('sage', '  What are you reading?  ')
+  assert.equal(exchange.sent.text, 'What are you reading?')
+  assert.equal(exchange.sent.channel, 'private')
+  assert.equal(exchange.reply.simulated, true)
+  assert.equal(chat.history('sage').length, 2)
+  for (const other of ['pip', 'rex', 'nova', 'axel', 'muse'] as const) assert.equal(chat.history(other).length, 0, `${other} heard nothing`)
+  await assert.rejects(chat.send('sage', '   '), /Write a message/)
+  await assert.rejects(chat.send('sage', 'x'.repeat(2001)), /up to 2000/)
+})
+
+test('broadcast reaches all six agents with a result each, apart from private chat', async () => {
+  const chat = new ChatService(Date.now, 0)
+  await chat.send('pip', 'private note')
+  const result = await chat.broadcast('Team: new sources are coming.')
+  assert.deepEqual(result.deliveries.map((d) => d.agent), ['pip', 'sage', 'rex', 'nova', 'axel', 'muse'])
+  assert.ok(result.deliveries.every((d) => d.status === 'delivered' && d.sent?.channel === 'broadcast' && d.reply?.simulated))
+  assert.equal(chat.history('pip').length, 4, 'pip: private pair plus broadcast pair')
+  assert.equal(chat.history('muse').filter((m) => m.channel === 'private').length, 0, 'no private messages leaked to muse')
+  await assert.rejects(chat.broadcast(''), /Write a message/)
 })

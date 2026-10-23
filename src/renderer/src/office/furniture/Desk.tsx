@@ -3,6 +3,7 @@
 // Local frame: the sitter is on +x facing -x; the desk runs along z.
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { motion } from '../../state/motion'
 import * as THREE from 'three'
 import { Box, Cylinder } from '../primitives'
 import { useMat } from '../materials'
@@ -40,7 +41,7 @@ function Monitor({ at, yaw, kind, seed, busy }: MonitorProps): JSX.Element {
   const scroll = useRef(seed * 0.137)
   useFrame((_, dt) => {
     const map = screen.map as THREE.Texture
-    if (busy) {
+    if (busy && !motion.isCalm()) {
       scroll.current += dt * 0.035
       map.offset.y = scroll.current % 1
     }

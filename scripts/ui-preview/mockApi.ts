@@ -234,6 +234,19 @@ export function installMockApi(params: URLSearchParams): void {
         citations: ['llm-wiki', 'wikilinks', 'context-window', 'prompt-caching']
       }
     },
+    async chatSend(agentId, text) {
+      await delay(600)
+      const at = Date.now()
+      const sent = { id: `u${at}`, from: 'user' as const, text, at, channel: 'private' as const, simulated: false }
+      return { sent, reply: { id: `a${at}`, from: 'agent' as const, text: `Noted: "${text}"`, at, channel: 'private' as const, simulated: true } }
+    },
+    async chatHistory() {
+      return []
+    },
+    async broadcastSend(text) {
+      await delay(600)
+      return { at: Date.now(), text, deliveries: AGENTS.map((a) => ({ agent: a.id, status: 'delivered' as const })) }
+    },
     async runJanitor() {
       push({ ...snapshot, janitor: { ...snapshot.janitor, running: true } })
       await delay(1500)

@@ -5,8 +5,12 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import type { AgentId, AgentState, AgentStatus } from '@shared/types'
-import { rigSeated } from './avatarRig'
+import type { AgentId, AgentStatus } from '@shared/types'
+import { rigSeated, type RigState } from './avatarRig'
+import { IDENTITIES } from './identities'
+import type { Pose } from './choreography'
+import { motion } from '../../state/motion'
+import { useSpeaking } from '../../state/voice'
 import AgentCard from './AgentCard'
 import { CHAIR_SEAT_HEIGHT } from '../furniture/chairGeometry'
 import { UNIT_BOX } from '../primitives'
@@ -19,15 +23,10 @@ interface Outfit {
   hair: string
 }
 
-/** Near-black suits with a slight navy variation and near-black hair, like the people in the reference. */
-const OUTFITS: Record<AgentId, Outfit> = {
-  pip: { top: '#0a0d14', bottom: '#070708', hair: '#0d0b0a' },
-  sage: { top: '#08090b', bottom: '#070708', hair: '#110e0c' },
-  rex: { top: '#0b0c0f', bottom: '#070708', hair: '#0a0a0a' },
-  nova: { top: '#090c14', bottom: '#070708', hair: '#15110e' },
-  axel: { top: '#08090c', bottom: '#070708', hair: '#0c0b0a' },
-  muse: { top: '#0a0b0e', bottom: '#070708', hair: '#120f0c' }
-}
+/** Each agent's jacket and hair colour (see identities.ts); trousers and shoes stay near-black for everyone. */
+const OUTFITS = Object.fromEntries(
+  Object.entries(IDENTITIES).map(([id, { jacket, hair }]) => [id, { top: jacket, bottom: '#070708', hair }])
+) as Record<AgentId, Outfit>
 
 /** Outfit for the non-interactive colleagues at the shared benches. */
 const STAFF_OUTFIT: Outfit = { top: '#0a0c12', bottom: '#070708', hair: '#0b0a09' }
@@ -112,31 +111,51 @@ function addHair(root: THREE.Object3D, color: string): Disposable[] {
 
 interface AvatarBodyProps {
   outfit: Outfit
-  state: AgentState
+  state: RigState
   /** Rotation around y; the avatar faces +z at 0. */
   facing: number
   phase: number
+  /** Present for agents that can leave their desk; while `pose.active` it overrides the seated pose. */
+  pose?: Pose
 }
 
 /** A cloned, re-dressed Ready Player Me avatar posed in its chair and animated by state. */
-function AvatarBody({ outfit, state, facing, phase }: AvatarBodyProps): JSX.Element {
+function AvatarBody({ outfit, state, facing, phase, pose }: AvatarBodyProps): JSX.Element {
   const { scene } = useGLTF(AVATAR_URL, false, false)
-  const { avatar, rig, owned } = useMemo(() => {
+  const { avatar, rig, owned, seatedY } = useMemo(() => {
     const avatar = cloneSkinned(scene)
     const owned = [...dress(avatar, outfit), ...addHair(avatar, outfit.hair)]
     const rig = rigSeated(avatar)
-    avatar.position.y = Math.max(CHAIR_SEAT_HEIGHT + 0.07, rig.legReach) - rig.hipsY
-    return { avatar, rig, owned }
+    const seatedY = Math.max(CHAIR_SEAT_HEIGHT + 0.07, rig.legReach) - rig.hipsY
+    avatar.position.y = seatedY
+    return { avatar, rig, owned, seatedY }
   }, [scene, outfit])
   // Textures and the remaining materials belong to the GLTF cache and are shared by every clone.
   useEffect(() => () => owned.forEach((o) => o.dispose()), [owned])
 
   const current = useRef(state)
   current.current = state
-  useFrame(({ clock }) => rig.update(current.current, clock.elapsedTime, phase))
+  const turn = useRef<THREE.Group>(null)
+  useFrame(({ clock }) => {
+    const calm = motion.isCalm()
+    if (pose?.active) {
+      // Away from the desk: standing height, the walk or talk pose and the choreography's heading.
+      rig.stand = pose.stand
+      avatar.position.y = seatedY * (1 - pose.stand) + (pose.mode === 'walk' && !calm ? 0.015 * Math.abs(Math.sin(clock.elapsedTime * 5.3 + phase)) * pose.stand : 0)
+      if (turn.current) turn.current.rotation.y = pose.yaw
+      rig.update(pose.mode === 'walk' ? 'walking' : 'speaking', clock.elapsedTime, phase, calm)
+      return
+    }
+    if (rig.stand !== 0) {
+      rig.stand = 0
+      avatar.position.y = seatedY
+      if (turn.current) turn.current.rotation.y = facing
+    }
+    rig.update(current.current, clock.elapsedTime, phase, calm)
+  })
 
   return (
-    <group rotation={[0, facing, 0]}>
+    <group ref={turn} rotation={[0, facing, 0]}>
       <primitive object={avatar} />
     </group>
   )
@@ -164,11 +183,14 @@ interface AgentProps {
   /** Rotation around y; the avatar faces +z at 0. */
   facing: number
   phase: number
+  /** The agent's walking pose from the office choreography. */
+  pose?: Pose
   onClick?: (id: AgentId) => void
 }
 
 /** One agent at its desk: the avatar, an invisible hit volume and its floating card. */
-export default function Agent({ status, seat, facing, phase, onClick }: AgentProps): JSX.Element {
+export default function Agent({ status, seat, facing, phase, pose, onClick }: AgentProps): JSX.Element {
+  const speaking = useSpeaking(status.id)
   const handleClick = (e: ThreeEvent<MouseEvent>): void => {
     e.stopPropagation()
     onClick?.(status.id)
@@ -178,9 +200,17 @@ export default function Agent({ status, seat, facing, phase, onClick }: AgentPro
     document.body.style.cursor = cursor
   }
 
+  const group = useRef<THREE.Group>(null)
+  // The group (avatar, hit volume and card) follows the walker; at the desk it sits on the seat.
+  useFrame(() => {
+    if (!group.current) return
+    if (pose?.active) group.current.position.set(pose.x, 0, pose.z)
+    else group.current.position.set(seat[0], 0, seat[1])
+  })
+
   return (
-    <group position={[seat[0], 0, seat[1]]}>
-      <AvatarBody outfit={OUTFITS[status.id]} state={status.state} facing={facing} phase={phase} />
+    <group ref={group} position={[seat[0], 0, seat[1]]}>
+      <AvatarBody outfit={OUTFITS[status.id]} state={speaking ? 'speaking' : status.state} facing={facing} phase={phase} pose={pose} />
       {/* Invisible hit volume: raycasting a box is far cheaper than a skinned mesh on every pointer move. */}
       <mesh
         geometry={UNIT_BOX}
@@ -191,7 +221,7 @@ export default function Agent({ status, seat, facing, phase, onClick }: AgentPro
         onPointerOver={setCursor('pointer')}
         onPointerOut={setCursor('')}
       />
-      <AgentCard status={status} onClick={onClick} />
+      <AgentCard status={status} speaking={speaking} onClick={onClick} />
     </group>
   )
 }

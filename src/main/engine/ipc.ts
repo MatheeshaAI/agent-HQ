@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
-import { IPC, type SettingsUpdate } from '@shared/types'
+import { AGENTS, IPC, type AgentId, type SettingsUpdate } from '@shared/types'
 import type { Engine } from './engine'
 
 /**
@@ -18,6 +18,9 @@ export function registerIpc(ready: Promise<Engine>): void {
   handle(IPC.addNote, (engine, text: string) => engine.addNote(asString(text, 'note')))
   handle(IPC.retrySource, (engine, id: string) => engine.retrySource(asString(id, 'source id')))
   handle(IPC.ask, (engine, question: string) => engine.ask(asString(question, 'question')))
+  handle(IPC.chatSend, (engine, agentId: string, text: string) => engine.chat.send(asAgentId(agentId), asString(text, 'message')))
+  handle(IPC.chatHistory, (engine, agentId: string) => engine.chat.history(asAgentId(agentId)))
+  handle(IPC.broadcastSend, (engine, text: string) => engine.chat.broadcast(asString(text, 'message')))
   handle(IPC.runJanitor, (engine) => engine.runJanitor())
   handle(IPC.listPages, (engine) => engine.listPages())
   handle(IPC.readPage, (engine, slug: string) => engine.readPage(asString(slug, 'page')))
@@ -71,6 +74,12 @@ function windowOf(event: IpcMainInvokeEvent | Electron.IpcMainEvent): BrowserWin
 function asString(value: unknown, what: string): string {
   if (typeof value !== 'string') throw new Error(`Expected a ${what}`)
   return value
+}
+
+function asAgentId(value: unknown): AgentId {
+  const agent = AGENTS.find((a) => a.id === value)
+  if (!agent) throw new Error('Unknown agent')
+  return agent.id
 }
 
 function asStringList(value: unknown): string[] {
