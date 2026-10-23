@@ -3,21 +3,22 @@
   position: absolute;
   left: 0;
   bottom: 0;
-  transform: translate(-50%, -6px);
+  transform: translate(-50%, -5px);
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 196px;
+  gap: 8px;
+  min-width: 168px;
   max-width: 232px;
-  height: 66px;
-  padding: 0 14px 0 12px;
+  height: 50px;
+  padding: 0 11px 0 9px;
   box-sizing: border-box;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.21);
-  background: linear-gradient(180deg, rgba(24, 23, 22, 0.96), rgba(20, 19, 18, 0.96));
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(14, 20, 30, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
   color: #fff;
   font-family: Inter, system-ui, sans-serif;
   text-align: left;
@@ -36,9 +37,8 @@
   width: 6.5px;
   height: 6.5px;
   transform: translateX(-50%) rotate(45deg);
-  background: rgb(20, 19, 18);
-  border-right: 1px solid rgba(255, 255, 255, 0.21);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.21);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .hq-agent-card:hover {
@@ -55,8 +55,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 50%,
@@ -69,6 +69,8 @@
 }
 
 .hq-agent-card__icon svg {
+  width: 20px;
+  height: 20px;
   filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.5));
 }
 
@@ -80,24 +82,24 @@
 }
 
 .hq-agent-card__name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.005em;
-  line-height: 20px;
+  line-height: 16px;
 }
 
 .hq-agent-card__state {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
-  line-height: 14px;
+  line-height: 13px;
 }
 
 .hq-agent-card__dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -125,9 +127,9 @@
 .hq-agent-card__role {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
-  line-height: 14px;
-  color: #c9cbd0;
+  font-size: 10.5px;
+  line-height: 13px;
+  color: #d3d5da;
 }
 
 .hq-agent-card__sep {
