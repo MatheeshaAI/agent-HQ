@@ -4,7 +4,7 @@ import styles from './BottomBar.module.css'
 const HINTS: { icon: LucideIcon; text: string }[] = [
   { icon: FileUp, text: 'Drop a file or drag a file onto the office to start a job.' },
   { icon: ScanEye, text: 'Click the big wall screen for the graph view.' },
-  { icon: MousePointerClick, text: 'Click Muse to ask a question.' }
+  { icon: MousePointerClick, text: 'Click an agent to message it.' }
 ]
 
 export function HintRow(): JSX.Element {

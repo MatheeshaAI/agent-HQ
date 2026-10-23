@@ -29,12 +29,6 @@
   margin-top: 7px;
 }
 
-.statusCard {
-  flex: none;
-  height: 226px;
-  margin-top: 7px;
-}
-
 .cardHeader {
   display: flex;
   align-items: center;
@@ -49,20 +43,12 @@
   padding-left: 11px;
 }
 
-.statusCard .cardHeader {
-  padding: 8px 15px 0 13px;
-}
-
 .cardTitle {
   flex: 1;
   margin: 0 0 0 7px;
   color: var(--text-strong);
   font-size: 12.5px;
   font-weight: 600;
-}
-
-.statusCard .cardTitle {
-  margin-left: 0;
 }
 
 .liveIcon {
@@ -197,61 +183,4 @@
 
 .taskTime {
   margin-top: 6px;
-}
-
-/* Agent Status */
-.onlineCount {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #c9cacd;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.statusList {
-  margin: 0;
-  padding: 0 0 0 0;
-  list-style: none;
-}
-
-.statusRow {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 28px;
-  padding: 0 14px 0 13px;
-  text-align: left;
-  border-radius: 8px;
-}
-
-.statusRow:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.statusRole {
-  flex: 1;
-  margin-left: 7px;
-  color: #eef0f4;
-  font-size: 11.5px;
-}
-
-.presence {
-  min-width: 34px;
-  margin-left: 10px;
-  text-align: right;
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.presence_green {
-  color: #8fd8b9;
-}
-
-.presence_grey {
-  color: #8a909a;
-}
-
-.presence_red {
-  color: var(--red-text);
 }

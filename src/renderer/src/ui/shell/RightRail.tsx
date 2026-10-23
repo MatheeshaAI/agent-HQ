@@ -3,10 +3,9 @@ import { ListTodo, Radio } from 'lucide-react'
 import { useSnapshot } from '../../state/snapshot'
 import { navigation } from '../../state/navigation'
 import { formatRelative, useNow } from '../../state/clock'
-import { agentPresence, onlineAgentCount, tasksForDisplay } from '../../state/derived'
+import { tasksForDisplay } from '../../state/derived'
 import { ACTIVITY_ICONS, AGENT_ICONS, AGENT_TONES, activityTone } from '../common/icons'
 import { IconTile } from '../common/IconTile'
-import { StatusDot } from '../common/StatusDot'
 import { EmptyState } from '../common/EmptyState'
 import { useFitCount } from '../common/useFitCount'
 import styles from './RightRail.module.css'
@@ -19,7 +18,6 @@ export function RightRail(): JSX.Element {
     <aside className={styles.rail}>
       <LiveActivityCard />
       <CurrentTasksCard />
-      <AgentStatusCard />
     </aside>
   )
 }
@@ -119,40 +117,6 @@ function CurrentTasksCard(): JSX.Element {
               </li>
             ))
         )}
-      </ul>
-    </Card>
-  )
-}
-
-function AgentStatusCard(): JSX.Element {
-  const { agents } = useSnapshot()
-  const online = onlineAgentCount(agents)
-
-  return (
-    <Card
-      className={styles.statusCard}
-      title="Agent Status"
-      aside={
-        <span className={styles.onlineCount}>
-          <StatusDot tone={online === agents.length ? 'green' : 'amber'} size={7} />
-          {online} / {agents.length} online
-        </span>
-      }
-    >
-      <ul className={styles.statusList}>
-        {agents.map((agent) => {
-          const presence = agentPresence(agent.state)
-          return (
-            <li key={agent.id}>
-              <button className={styles.statusRow} onClick={() => navigation.focusAgent(agent.id)} title={`${agent.name}: ${agent.activity}`}>
-                <IconTile icon={AGENT_ICONS[agent.id]} tone={agent.state === 'error' ? 'red' : 'green'} size={24} />
-                <span className={styles.statusRole}>{agent.role}</span>
-                <StatusDot tone={presence.tone} size={7} />
-                <span className={`${styles.presence} ${styles[`presence_${presence.tone}`]}`}>{presence.label}</span>
-              </button>
-            </li>
-          )
-        })}
       </ul>
     </Card>
   )
