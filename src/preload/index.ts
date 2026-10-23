@@ -41,6 +41,10 @@ const api: AgentHqApi = {
 
   getSettings: () => invoke(IPC.getSettings),
   saveSettings: (update) => invoke(IPC.saveSettings, update),
+  listRooms: () => invoke(IPC.listRooms),
+  switchRoom: (id) => invoke(IPC.switchRoom, id),
+  addRoom: (name) => invoke(IPC.addRoom, name),
+  renameRoom: (id, name) => invoke(IPC.renameRoom, id, name),
   listModels: () => invoke(IPC.listModels),
   openClaudeLogin: () => invoke(IPC.openClaudeLogin),
   chooseKnowledgeDir: () => invoke(IPC.chooseKnowledgeDir),

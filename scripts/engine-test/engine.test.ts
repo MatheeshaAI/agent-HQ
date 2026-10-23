@@ -393,6 +393,40 @@ test('switching the knowledge folder rescans it', async () => {
   assert.ok(engine.getSnapshot().stats.pages > 0)
 })
 
+test('room migration, switching and wiki isolation', async () => {
+  const migrated = JSON.parse(readFileSync(join(DATA, 'settings.json'), 'utf8'))
+  assert.equal(migrated.rooms[0].name, 'Work')
+  assert.equal(migrated.rooms[0].knowledgeDir, KNOWLEDGE)
+  assert.equal(migrated.currentRoomId, migrated.rooms[0].id)
+  const [work] = engine.listRooms()
+  const before = engine.listPages().map((page) => page.slug)
+  const rooms = await engine.addRoom('Personal')
+  const personal = rooms.find((room) => room.name === 'Personal')!
+  assert.ok(personal.knowledgeDir.endsWith('Agent HQ Knowledge - Personal'))
+  await engine.switchRoom(personal.id)
+  assert.deepEqual(engine.listPages(), [])
+  await engine.addNote('A private note for the Personal room mentioning Moonstone.'); await engine.idle()
+  assert.ok(engine.listPages().length > 0)
+  await engine.switchRoom(work.id)
+  assert.deepEqual(engine.listPages().map((page) => page.slug), before)
+  await engine.switchRoom(personal.id)
+  assert.ok(engine.listPages().some((page) => /Moonstone/i.test(page.title)))
+  await engine.switchRoom(work.id)
+})
+
+test('room folder names are sanitized and duplicate names are rejected', async () => {
+  const traversal = (await engine.addRoom('../../x')).find((room) => room.name === '../../x')!
+  assert.ok(traversal.knowledgeDir.endsWith('Agent HQ Knowledge - x'))
+
+  const slash = (await engine.addRoom('a/b')).find((room) => room.name === 'a/b')!
+  assert.ok(slash.knowledgeDir.endsWith('Agent HQ Knowledge - ab'))
+
+  const invalidWindowsCharacter = (await engine.addRoom('A:B')).find((room) => room.name === 'A:B')!
+  assert.ok(invalidWindowsCharacter.knowledgeDir.endsWith('Agent HQ Knowledge - AB (2)'))
+
+  await assert.rejects(engine.addRoom('wOrK'), /room named "wOrK" already exists/i)
+})
+
 test('front matter round-trips and keeps hand-written keys', () => {
   const page = renderPage(
     { title: 'Quotes "and" colons: yes', tags: ['a', 'b c'], sources: ['s1'], updated: '2026-10-22T10:00:00.000Z', summary: 'One line.' },

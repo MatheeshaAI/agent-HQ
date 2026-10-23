@@ -26,6 +26,10 @@ export function registerIpc(ready: Promise<Engine>): void {
   handle(IPC.readPage, (engine, slug: string) => engine.readPage(asString(slug, 'page')))
   handle(IPC.getSettings, (engine) => engine.getSettings())
   handle(IPC.saveSettings, (engine, update: SettingsUpdate) => engine.saveSettings(asSettingsUpdate(update)))
+  handle(IPC.listRooms, (engine) => engine.listRooms())
+  handle(IPC.switchRoom, (engine, id: string) => engine.switchRoom(asString(id, 'room id')))
+  handle(IPC.addRoom, (engine, name: string) => engine.addRoom(asString(name, 'room name')))
+  handle(IPC.renameRoom, (engine, id: string, name: string) => engine.renameRoom(asString(id, 'room id'), asString(name, 'room name')))
   handle(IPC.listModels, (engine) => engine.listModels())
   ipcMain.handle(IPC.openClaudeLogin, async () => {
     if (process.platform !== 'win32') throw new Error('Open a terminal and run claude to sign in on this platform')

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
-import type { ProviderId, SettingsUpdate, SettingsView } from '@shared/types'
+import { randomUUID } from 'node:crypto'
+import { basename, isAbsolute, join, resolve } from 'node:path'
+import type { ProviderId, Room, SettingsUpdate, SettingsView } from '@shared/types'
 import { writeFileAtomic } from './util/fsx'
 
 const DEFAULT_MODEL = 'claude-opus-5-5'
@@ -19,6 +20,8 @@ interface StoredKey {
 }
 
 interface SettingsFile {
+  rooms?: Room[]
+  currentRoomId?: string
   knowledgeDir?: string
   model?: string
   userName?: string
@@ -32,6 +35,7 @@ interface SettingsFile {
 
 export interface SettingsDefaults {
   knowledgeDir: string
+  documentsDir?: string
   /** Used when no key is saved, e.g. process.env.ANTHROPIC_API_KEY */
   envApiKey?: string
 }
@@ -69,6 +73,14 @@ export class SettingsStore {
       this.data = {}
     }
     this.apiKeys = {}
+    if (!this.data.rooms?.length) {
+      const id = 'work'
+      this.data.rooms = [{ id, name: 'Work', knowledgeDir: this.data.knowledgeDir || this.defaults.knowledgeDir }]
+      this.data.currentRoomId = id
+    }
+    if (!this.data.rooms.some((room) => room.id === this.data.currentRoomId)) this.data.currentRoomId = this.data.rooms[0].id
+    this.data.knowledgeDir = this.currentRoom().knowledgeDir
+    await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
     const storedKeys = { ...(this.data.apiKeys ?? {}) }
     if (this.data.apiKey?.value && !storedKeys.anthropic) storedKeys.anthropic = this.data.apiKey
     this.data.apiKeys = storedKeys
@@ -97,12 +109,72 @@ export class SettingsStore {
       command: this.data.command ?? '',
       args: this.data.args ?? '',
       model: this.model(),
-      userName: this.data.userName?.trim() || DEFAULT_USER_NAME
+      userName: this.data.userName?.trim() || DEFAULT_USER_NAME,
+      rooms: this.data.rooms ?? [], currentRoomId: this.data.currentRoomId ?? 'work'
     }
   }
 
   knowledgeDir(): string {
-    return this.data.knowledgeDir || this.defaults.knowledgeDir
+    return this.currentRoom().knowledgeDir
+  }
+
+  private currentRoom(): Room {
+    return this.data.rooms?.find((room) => room.id === this.data.currentRoomId) ??
+      this.data.rooms?.[0] ??
+      { id: 'work', name: 'Work', knowledgeDir: this.data.knowledgeDir || this.defaults.knowledgeDir }
+  }
+
+  listRooms(): Room[] {
+    return (this.data.rooms ?? []).map((room) => ({ ...room }))
+  }
+
+  async switchRoom(id: string): Promise<boolean> {
+    const room = this.data.rooms?.find((item) => item.id === id)
+    if (!room) throw new Error('Room not found')
+    const changed = this.knowledgeDir() !== room.knowledgeDir
+    this.data.currentRoomId = id
+    this.data.knowledgeDir = room.knowledgeDir
+    await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
+    return changed
+  }
+  async addRoom(name: string): Promise<Room[]> {
+    const clean = name.trim()
+    if (!clean) throw new Error('Room name is required')
+
+    this.data.rooms ??= []
+    if (this.data.rooms.some((room) => room.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error(`A room named "${clean}" already exists`)
+    }
+
+    const baseName = sanitizeFolderName(clean) || 'Room'
+    const parentDir = this.defaults.documentsDir ?? this.defaults.knowledgeDir
+    let folderName = baseName
+    let suffix = 2
+    while (this.data.rooms.some((room) =>
+      basename(resolve(room.knowledgeDir)).toLowerCase() === `agent hq knowledge - ${folderName}`.toLowerCase()
+    )) {
+      const marker = ` (${suffix++})`
+      folderName = `${baseName.slice(0, 60 - marker.length).trimEnd()}${marker}`
+    }
+
+    const id = randomUUID()
+    this.data.rooms.push({
+      id,
+      name: clean,
+      knowledgeDir: resolve(join(parentDir, `Agent HQ Knowledge - ${folderName}`))
+    })
+    await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
+    return this.listRooms()
+  }
+
+  async renameRoom(id: string, name: string): Promise<Room[]> {
+    const room = this.data.rooms?.find((item) => item.id === id)
+    if (!room) throw new Error('Room not found')
+    const clean = name.trim()
+    if (!clean) throw new Error('Room name is required')
+    room.name = clean
+    await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
+    return this.listRooms()
   }
 
   model(): string {
@@ -134,6 +206,8 @@ export class SettingsStore {
       const dir = update.knowledgeDir.trim()
       if (dir && !isAbsolute(dir)) throw new Error('The knowledge folder must be an absolute path')
       this.data.knowledgeDir = dir ? resolve(dir) : undefined
+      const active = this.data.rooms?.find((room) => room.id === this.data.currentRoomId)
+      if (active) active.knowledgeDir = this.data.knowledgeDir || this.defaults.knowledgeDir
     }
     if (update.model !== undefined) this.data.model = update.model.trim() || undefined
     if (update.providerId !== undefined) this.data.providerId = update.providerId
@@ -161,4 +235,15 @@ export class SettingsStore {
     const providerConfig = [this.data.providerId ?? 'anthropic', this.data.baseUrl ?? '', this.data.command ?? '', this.data.args ?? '', this.data.model ?? ''].join('\0')
     return { view: this.view(), knowledgeDirChanged: this.knowledgeDir() !== previousDir, apiKeyChanged, providerChanged: providerConfig !== previousProviderConfig, storedPlain }
   }
+}
+
+function sanitizeFolderName(name: string): string {
+  return name
+    .replace(/[\\/]/g, '')
+    .replace(/\.\./g, '')
+    .replace(/[:*?"<>|]/g, '')
+    .trim()
+    .replace(/^[. ]+|[. ]+$/g, '')
+    .slice(0, 60)
+    .replace(/[. ]+$/g, '')
 }

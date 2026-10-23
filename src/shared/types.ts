@@ -125,7 +125,11 @@ export interface SettingsView {
   args: string
   model: string
   userName: string
+  rooms: Room[]
+  currentRoomId: string
 }
+
+export interface Room { id: string; name: string; knowledgeDir: string }
 
 export type ProviderId = 'anthropic' | 'claude-code' | 'openai' | 'openrouter' | 'codex' | 'opencode' | 'antigravity' | 'kilocode' | 'acp'
 
@@ -234,6 +238,10 @@ export interface AgentHqApi {
   readPage(slug: string): Promise<WikiPageContent | null>
 
   getSettings(): Promise<SettingsView>
+  listRooms(): Promise<Room[]>
+  switchRoom(id: string): Promise<Room[]>
+  addRoom(name: string): Promise<Room[]>
+  renameRoom(id: string, name: string): Promise<Room[]>
   saveSettings(update: SettingsUpdate): Promise<SettingsView>
   listModels(): Promise<ModelOption[]>
   openClaudeLogin(): Promise<void>
@@ -265,6 +273,7 @@ export const IPC = {
   readPage: 'hq:readPage',
   getSettings: 'hq:getSettings',
   saveSettings: 'hq:saveSettings',
+  listRooms: 'hq:listRooms', switchRoom: 'hq:switchRoom', addRoom: 'hq:addRoom', renameRoom: 'hq:renameRoom',
   listModels: 'hq:listModels',
   openClaudeLogin: 'hq:openClaudeLogin',
   chooseKnowledgeDir: 'hq:chooseKnowledgeDir',

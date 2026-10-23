@@ -91,6 +91,15 @@
   gap: 11px;
   flex: none;
 }
+.rooms { position: relative; display: flex; align-items: center; flex: none; margin-left: 12px; border: 1px solid #171a20; border-radius: 9px; background: rgba(10, 11, 18, .88); height: 34px; -webkit-app-region: no-drag; }
+.rooms button { color: #c9d3e2; background: transparent; border: 0; cursor: pointer; font-size: 11px; padding: 0 9px; height: 100%; }
+.rooms .roomActive { color: #fff; background: rgba(74, 165, 220, .18); border-radius: 8px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rooms .roomAdd { font-size: 17px; padding: 0 10px; border-left: 1px solid #171a20; }
+.roomMenu { display: grid; position: absolute; top: 100%; left: 0; z-index: 35; min-width: 120px; padding: 4px; border: 1px solid #171a20; border-radius: 8px; background: #0a0b12; }
+.roomMenu button { text-align: left; border-radius: 5px; }
+.roomMenu button:hover { background: rgba(255,255,255,.07); }
+.roomPrompt { position: absolute; z-index: 40; top: 60px; left: 55%; display: flex; gap: 5px; padding: 8px; background: #0a0b12; border: 1px solid #171a20; border-radius: 8px; -webkit-app-region: no-drag; }
+.roomPrompt input { width: 130px; background: transparent; border: 0; color: #fff; }
 .stat {
   display: flex;
   align-items: center;
