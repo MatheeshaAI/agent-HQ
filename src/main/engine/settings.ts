@@ -87,6 +87,7 @@ export class SettingsStore {
     return {
       knowledgeDir: this.knowledgeDir(),
       apiKeySet: this.resolvedApiKey() !== null,
+      providerReady: this.providerReady(),
       configuredProviders: [...new Set<ProviderId>([
         ...(Object.keys(this.apiKeys) as ProviderId[]),
         ...(this.defaults.envApiKey?.trim() ? ['anthropic' as const] : [])
@@ -111,6 +112,14 @@ export class SettingsStore {
   /** The saved key, or the environment's key when none is saved. */
   resolvedApiKey(): string | null {
     return this.apiKeys[this.providerId()] || (this.providerId() === 'anthropic' ? this.defaults.envApiKey?.trim() : undefined) || null
+  }
+
+  /** True when the selected provider is usable: a key for key-based providers, or a command for CLI/ACP agents. */
+  providerReady(): boolean {
+    const provider = this.providerId()
+    if (provider === 'claude-code') return true
+    if (provider === 'codex' || provider === 'opencode' || provider === 'antigravity' || provider === 'kilocode' || provider === 'acp') return Boolean(this.data.command?.trim())
+    return this.resolvedApiKey() !== null
   }
 
   private providerId(): ProviderId { return this.data.providerId ?? 'anthropic' }

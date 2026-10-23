@@ -62,7 +62,7 @@ export class Engine {
       args: this.settings.view().args,
       model: this.settings.model()
     }))
-    this.janitor = new Janitor(this.state, this.llm, () => this.settings.resolvedApiKey() !== null, this.now)
+    this.janitor = new Janitor(this.state, this.llm, () => this.settings.providerReady(), this.now)
     this.queue = new IngestQueue({
       state: this.state,
       llm: this.llm,
@@ -156,7 +156,7 @@ export class Engine {
       )
     }
     if (result.knowledgeDirChanged) await this.openKnowledge(result.view.knowledgeDir)
-    else if ((result.apiKeyChanged || result.providerChanged) && (result.view.apiKeySet || result.view.providerId === 'claude-code' || result.view.command)) await this.retryMissingKeyFailures()
+    else if ((result.apiKeyChanged || result.providerChanged) && result.view.providerReady) await this.retryMissingKeyFailures()
     return result.view
   }
 

@@ -22,7 +22,7 @@ export function AnswerPanel({ state, onClose }: AnswerPanelProps): JSX.Element {
   const openPage = (target: string): void => navigation.openPage(resolve(target) ?? target)
   const result = state.status === 'done' ? state.result : null
   const failed = result !== null && (Boolean(result.error) || !result.answer.trim())
-  const needsKey = !settings.apiKeySet || /api key|unauthori[sz]ed|authentication|\b401\b/i.test(result?.error ?? '')
+  const needsKey = !settings.providerReady || /api key|unauthori[sz]ed|authentication|\b401\b/i.test(result?.error ?? '')
 
   const copy = async (): Promise<void> => {
     if (!result) return
@@ -68,11 +68,11 @@ export function AnswerPanel({ state, onClose }: AnswerPanelProps): JSX.Element {
 
         {result && failed && (
           <div className={styles.error}>
-            <div className={styles.errorTitle}>{settings.apiKeySet ? 'Muse could not answer' : 'Add your Claude API key'}</div>
+            <div className={styles.errorTitle}>{settings.providerReady ? 'Muse could not answer' : 'Set up an AI provider'}</div>
             <div className={styles.errorText}>
-              {settings.apiKeySet
+              {settings.providerReady
                 ? (result.error ?? 'No answer came back. Try asking again.')
-                : 'Muse answers questions with Claude. Add an API key in Settings to start asking the wiki.'}
+                : 'Muse answers questions with the AI provider you choose. Set it up in Settings to start asking the wiki.'}
             </div>
             {needsKey && (
               <Button

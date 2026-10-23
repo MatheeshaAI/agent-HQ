@@ -116,6 +116,8 @@ export interface JanitorReport {
 export interface SettingsView {
   knowledgeDir: string
   apiKeySet: boolean
+  /** True when the selected provider can be used (key saved, or CLI/ACP command configured). */
+  providerReady: boolean
   configuredProviders: ProviderId[]
   providerId: ProviderId
   baseUrl: string
