@@ -89,7 +89,7 @@ export class SettingsStore {
       apiKeySet: this.resolvedApiKey() !== null,
       configuredProviders: [...new Set<ProviderId>([
         ...(Object.keys(this.apiKeys) as ProviderId[]),
-        ...(this.defaults.envApiKey?.trim() ? ['anthropic'] : [])
+        ...(this.defaults.envApiKey?.trim() ? ['anthropic' as const] : [])
       ])],
       providerId: this.data.providerId ?? 'anthropic',
       baseUrl: this.data.baseUrl ?? '',
