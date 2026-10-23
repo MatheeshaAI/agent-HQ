@@ -40,10 +40,21 @@ npx electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false -c.nsis
 This writes `dist/AgentHQ-Setup-0.1.0.exe`. On Linux the build needs Wine (`wine`, `wine64`, `wine32:i386`). The installer installs for the current user only (no admin rights), lets you pick the folder, and adds Start-menu and Desktop shortcuts. It is not code-signed, so Windows SmartScreen shows "Windows protected your PC": choose **More info**, then **Run anyway**.
 
 Once the app is running (from `npm run dev` or the installer), open **Settings** and:
-1. Paste your **Claude API key**. It is stored on your computer, encrypted with your OS keychain where available, and only ever sent to the Claude API. You can also set `ANTHROPIC_API_KEY` in your environment instead.
+1. Pick an **AI provider** (see below) and, for providers that use one, paste its API key. Keys are stored per provider on your computer, encrypted with your OS keychain where available, and only sent to that provider. For the Anthropic API you can also set `ANTHROPIC_API_KEY` in your environment instead.
 2. Optionally choose your **knowledge folder**. The default is `Documents/Agent HQ Knowledge`.
 
-Without a key, everything works except ingest, Ask and the contradiction check, which say "Add your Claude API key in Settings".
+Without a usable provider, everything works except ingest, Ask and the contradiction check, which ask you to set one up in Settings.
+
+### AI providers
+
+| Provider | How it connects | PDFs | Images |
+| --- | --- | --- | --- |
+| Anthropic API (default) | API key | yes | yes |
+| Claude subscription (Claude Code) | the `claude` command-line tool, signed in with your Claude account (Settings has a **Sign in to Claude** button) | no | no |
+| OpenAI API, OpenRouter | API key, optional base URL | no | yes |
+| Codex, OpenCode, Antigravity, Kilo Code, custom ACP agent | a command-line agent that speaks ACP over stdio, started from the command and arguments you enter | no | yes |
+
+A source the chosen provider cannot read (for example a PDF on a non-Anthropic route) fails with a clear message instead of being skipped. **Load models** lists what the provider offers; for ACP agents that don't list models, type the model ID. On Windows, `.cmd` shims such as the npm-installed `claude` and `npx` are started through `cmd.exe`.
 
 The default model is `claude-opus-5-5` (changeable in Settings). Requests use structured outputs, and `fallbacks: "default"`, so a request Claude declines is re-run on Anthropic's recommended fallback model instead of failing.
 

@@ -1,6 +1,6 @@
 {
   "name": "agent-hq",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent HQ: a 3D AI agent office for an LLM Wiki second brain",
   "main": "./out/main/index.js",
   "scripts": {
