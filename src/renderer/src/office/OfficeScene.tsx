@@ -20,6 +20,7 @@ import Lighting from './lights/Lighting'
 import Effects from './Effects'
 import StaticBatch from './StaticBatch'
 import { NO_REFLECTION_LAYER } from './NoReflection'
+import { SceneCameraControls, SceneControlBar, onSceneKeyDown } from './SceneControls'
 
 export interface OfficeSceneProps {
   agents: AgentStatus[]
@@ -33,21 +34,12 @@ export interface OfficeSceneProps {
 /** Aspect ratio the framing was tuned for (the reference's office region). */
 const DESIGN_ASPECT = 1060 / 800
 
+/** Keeps the whole office in view when the panel is narrower than the design aspect (the position comes from SceneCameraControls). */
 function CameraRig(): null {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
   const size = useThree((s) => s.size)
   useLayoutEffect(() => {
-    const yaw = THREE.MathUtils.degToRad(CAMERA.yaw)
-    const elev = THREE.MathUtils.degToRad(CAMERA.elevation)
-    const [tx, ty, tz] = CAMERA.target
-    camera.position.set(
-      tx + CAMERA.distance * Math.cos(elev) * Math.sin(yaw),
-      ty + CAMERA.distance * Math.sin(elev),
-      tz + CAMERA.distance * Math.cos(elev) * Math.cos(yaw)
-    )
-    camera.lookAt(tx, ty, tz)
     camera.layers.enable(NO_REFLECTION_LAYER)
-    // Keep the whole office in view when the panel is narrower than the design aspect.
     const aspect = size.width / Math.max(1, size.height)
     const halfV = THREE.MathUtils.degToRad(CAMERA.fov / 2)
     const fitV = aspect < DESIGN_ASPECT ? Math.atan((Math.tan(halfV) * DESIGN_ASPECT) / aspect) : halfV
@@ -127,7 +119,14 @@ const MAX_DPR = Math.min(2, window.devicePixelRatio || 1)
 export default function OfficeScene({ active = true, ...props }: OfficeSceneProps): JSX.Element {
   const [dpr, setDpr] = useState(MAX_DPR)
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden' }}>
+    <div
+      style={{ position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden' }}
+      tabIndex={0}
+      role="group"
+      aria-label="Office view. Arrow keys pan, plus and minus zoom, Q and E rotate, F fits, 0 resets."
+      onKeyDown={onSceneKeyDown}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <Canvas
         shadows="soft"
         dpr={dpr}
@@ -139,12 +138,14 @@ export default function OfficeScene({ active = true, ...props }: OfficeSceneProp
         <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(MAX_DPR)} />
         <color attach="background" args={['#000']} />
         <CameraRig />
+        <SceneCameraControls />
         <Lighting />
         <Suspense fallback={null}>
           <Office {...props} />
         </Suspense>
         <Effects />
       </Canvas>
+      <SceneControlBar />
     </div>
   )
 }
