@@ -213,10 +213,10 @@ export function rigSeated(root: THREE.Object3D): SeatedRig {
   const q = new THREE.Quaternion()
   const pose = (name: BoneName, pitch: number, yaw: number, stand: number): void => {
     const a = animated.get(name) as Animated
-    const axes = stand > 0.5 ? (standingAxes.get(name) as { pitch: THREE.Vector3; yaw: THREE.Vector3 }) : { pitch: a.pitchAxis, yaw: a.yawAxis }
+    const upright = stand > 0.5 ? (standingAxes.get(name) as { pitch: THREE.Vector3; yaw: THREE.Vector3 }) : null
     a.bone.quaternion.copy(a.base)
-    if (pitch) a.bone.quaternion.multiply(q.setFromAxisAngle(axes.pitch, pitch))
-    if (yaw) a.bone.quaternion.multiply(q.setFromAxisAngle(axes.yaw, yaw))
+    if (pitch) a.bone.quaternion.multiply(q.setFromAxisAngle(upright ? upright.pitch : a.pitchAxis, pitch))
+    if (yaw) a.bone.quaternion.multiply(q.setFromAxisAngle(upright ? upright.yaw : a.yawAxis, yaw))
   }
 
   let blended = 0

@@ -15,6 +15,7 @@ A desktop app (Electron) for a second brain built on the **LLM Wiki** pattern. Y
   - **Muse** (Librarian) writes the pages into `wiki/`, refreshes `index.md` and appends to `log.md`.
 - **Janitor:** **Axel** checks the wiki after every ingest. It finds orphan pages (by code) and contradictions (with Claude). Results show in the bottom bar.
 - **Ask:** type a question in the bottom bar. Muse answers only from your wiki pages and cites them; click a citation to open the page.
+- **Office controls:** click an agent to open its drawer: status, a private conversation and a switcher. **Broadcast to all agents** sends one message to every agent after a confirmation. Replies are simulated until a backend answers for the agents. Zoom, rotate, Fit, Reset and Pause sit at the bottom left of the office; the mouse wheel zooms, dragging pans and right-drag rotates. Agent portraits are optional: see `src/renderer/src/assets/portraits/README.md`.
 - **Views:** Office (the live 3D office), Agents, Knowledge (searchable page reader), Tasks, Graph (interactive map of `[[links]]`), Inbox and Settings.
 
 The office, the side panels and the counters all show the real state of your knowledge folder. Nothing is sample data.

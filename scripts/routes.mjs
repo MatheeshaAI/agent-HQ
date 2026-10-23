@@ -21,6 +21,17 @@ await build({
   alias: { '@shared': join(root, 'src/shared') }
 })
 const R = await import(pathToFileURL(outfile).href)
+const choreoFile = join(dirname(outfile), 'choreography.mjs')
+await build({
+  entryPoints: [join(root, 'src/renderer/src/office/agents/choreography.ts')],
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  outfile: choreoFile,
+  logLevel: 'error',
+  alias: { '@shared': join(root, 'src/shared') }
+})
+const { Choreographer } = await import(pathToFileURL(choreoFile).href)
 const all = R.obstacles()
 const ids = Object.keys(R.AISLES)
 
@@ -155,5 +166,44 @@ for (let i = 0; i + 1 < R.PIPELINE.length; i++) {
   const path = R.tripPath(a, b).slice(2) // from the aisle spot onwards
   const { min, at } = minClearance(path, all)
   report(min >= R.BODY_CLEARANCE - 0.01, `${a} -> ${b}: ${path.length - 1} segments, tightest ${min.toFixed(2)} m at (${at.map((v) => v.toFixed(1))})`)
+}
+
+// A whole trip: leave the desk, walk, stop beside the other agent and speak, return, sit down.
+for (let i = 0; i + 1 < R.PIPELINE.length; i++) {
+  const a = R.PIPELINE[i]
+  const b = R.PIPELINE[i + 1]
+  const speaking = []
+  const choreo = new Choreographer((id, on) => speaking.push(on))
+  choreo.start(a, b)
+  const pose = choreo.poses[a]
+  let t = 0
+  let tightest = Infinity
+  let reachedAisle = false
+  const list = without(a)
+  while (choreo.busy && t < 120) {
+    choreo.update(0.05)
+    t += 0.05
+    if (pose.stand === 1) tightest = Math.min(tightest, R.clearanceAt(pose.x, pose.z, list))
+    if (Math.hypot(pose.x - R.AISLES[b][0], pose.z - R.AISLES[b][1]) < 0.05) reachedAisle = true
+  }
+  const seated = !pose.active && pose.x === R.SEATS[a][0] && pose.z === R.SEATS[a][1] && pose.stand === 0
+  report(!choreo.busy && seated && reachedAisle && speaking[0] === true && speaking.at(-1) === false, `${a} -> ${b}: walks, speaks, returns and sits down in ${t.toFixed(0)} s`)
+  report(tightest >= EXIT_CLEARANCE, `${a} -> ${b}: stays ${tightest.toFixed(2)} m clear of furniture while standing`)
+}
+{
+  const choreo = new Choreographer(() => {})
+  choreo.start('nova', 'muse')
+  for (let k = 0; k < 40; k++) choreo.update(0.05)
+  choreo.recall('nova')
+  let t = 0
+  while (choreo.busy && t < 60) {
+    choreo.update(0.05)
+    t += 0.05
+  }
+  report(!choreo.busy && !choreo.poses.nova.active, 'recall sends a walker straight back to its desk')
+  choreo.start('nova', 'muse')
+  choreo.update(1)
+  choreo.reset()
+  report(!choreo.busy && !choreo.poses.nova.active && choreo.poses.nova.stand === 0, 'reset seats everyone at once')
 }
 process.exitCode = failures ? 1 : 0
