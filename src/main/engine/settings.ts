@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { isAbsolute, join, resolve } from 'node:path'
+import { basename, isAbsolute, join, resolve } from 'node:path'
 import type { ProviderId, Room, SettingsUpdate, SettingsView } from '@shared/types'
 import { writeFileAtomic } from './util/fsx'
 
@@ -118,29 +118,60 @@ export class SettingsStore {
     return this.currentRoom().knowledgeDir
   }
 
-  private currentRoom(): Room { return this.data.rooms?.find((room) => room.id === this.data.currentRoomId) ?? this.data.rooms?.[0] ?? { id: 'work', name: 'Work', knowledgeDir: this.data.knowledgeDir || this.defaults.knowledgeDir } }
-  listRooms(): Room[] { return (this.data.rooms ?? []).map((room) => ({ ...room })) }
+  private currentRoom(): Room {
+    return this.data.rooms?.find((room) => room.id === this.data.currentRoomId) ??
+      this.data.rooms?.[0] ??
+      { id: 'work', name: 'Work', knowledgeDir: this.data.knowledgeDir || this.defaults.knowledgeDir }
+  }
+
+  listRooms(): Room[] {
+    return (this.data.rooms ?? []).map((room) => ({ ...room }))
+  }
+
   async switchRoom(id: string): Promise<boolean> {
     const room = this.data.rooms?.find((item) => item.id === id)
     if (!room) throw new Error('Room not found')
     const changed = this.knowledgeDir() !== room.knowledgeDir
-    this.data.currentRoomId = id; this.data.knowledgeDir = room.knowledgeDir
+    this.data.currentRoomId = id
+    this.data.knowledgeDir = room.knowledgeDir
     await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
     return changed
   }
   async addRoom(name: string): Promise<Room[]> {
     const clean = name.trim()
     if (!clean) throw new Error('Room name is required')
-    const id = randomUUID()
+
     this.data.rooms ??= []
-    this.data.rooms.push({ id, name: clean, knowledgeDir: resolve(join(this.defaults.documentsDir ?? this.defaults.knowledgeDir, `Agent HQ Knowledge - ${clean}`)) })
+    if (this.data.rooms.some((room) => room.name.toLowerCase() === clean.toLowerCase())) {
+      throw new Error(`A room named "${clean}" already exists`)
+    }
+
+    const baseName = sanitizeFolderName(clean) || 'Room'
+    const parentDir = this.defaults.documentsDir ?? this.defaults.knowledgeDir
+    let folderName = baseName
+    let suffix = 2
+    while (this.data.rooms.some((room) =>
+      basename(resolve(room.knowledgeDir)).toLowerCase() === `agent hq knowledge - ${folderName}`.toLowerCase()
+    )) {
+      const marker = ` (${suffix++})`
+      folderName = `${baseName.slice(0, 60 - marker.length).trimEnd()}${marker}`
+    }
+
+    const id = randomUUID()
+    this.data.rooms.push({
+      id,
+      name: clean,
+      knowledgeDir: resolve(join(parentDir, `Agent HQ Knowledge - ${folderName}`))
+    })
     await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
     return this.listRooms()
   }
+
   async renameRoom(id: string, name: string): Promise<Room[]> {
     const room = this.data.rooms?.find((item) => item.id === id)
     if (!room) throw new Error('Room not found')
-    const clean = name.trim(); if (!clean) throw new Error('Room name is required')
+    const clean = name.trim()
+    if (!clean) throw new Error('Room name is required')
     room.name = clean
     await writeFileAtomic(this.path, `${JSON.stringify(this.data, null, 2)}\n`)
     return this.listRooms()
@@ -204,4 +235,15 @@ export class SettingsStore {
     const providerConfig = [this.data.providerId ?? 'anthropic', this.data.baseUrl ?? '', this.data.command ?? '', this.data.args ?? '', this.data.model ?? ''].join('\0')
     return { view: this.view(), knowledgeDirChanged: this.knowledgeDir() !== previousDir, apiKeyChanged, providerChanged: providerConfig !== previousProviderConfig, storedPlain }
   }
+}
+
+function sanitizeFolderName(name: string): string {
+  return name
+    .replace(/[\\/]/g, '')
+    .replace(/\.\./g, '')
+    .replace(/[:*?"<>|]/g, '')
+    .trim()
+    .replace(/^[. ]+|[. ]+$/g, '')
+    .slice(0, 60)
+    .replace(/[. ]+$/g, '')
 }

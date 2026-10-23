@@ -413,6 +413,19 @@ test('room migration, switching and wiki isolation', async () => {
   await engine.switchRoom(work.id)
 })
 
+test('room folder names are sanitized and duplicate names are rejected', async () => {
+  const traversal = (await engine.addRoom('../../x')).find((room) => room.name === '../../x')!
+  assert.ok(traversal.knowledgeDir.endsWith('Agent HQ Knowledge - x'))
+
+  const slash = (await engine.addRoom('a/b')).find((room) => room.name === 'a/b')!
+  assert.ok(slash.knowledgeDir.endsWith('Agent HQ Knowledge - ab'))
+
+  const invalidWindowsCharacter = (await engine.addRoom('A:B')).find((room) => room.name === 'A:B')!
+  assert.ok(invalidWindowsCharacter.knowledgeDir.endsWith('Agent HQ Knowledge - AB (2)'))
+
+  await assert.rejects(engine.addRoom('wOrK'), /room named "wOrK" already exists/i)
+})
+
 test('front matter round-trips and keeps hand-written keys', () => {
   const page = renderPage(
     { title: 'Quotes "and" colons: yes', tags: ['a', 'b c'], sources: ['s1'], updated: '2026-10-22T10:00:00.000Z', summary: 'One line.' },
