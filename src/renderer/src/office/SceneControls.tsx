@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import { CAMERA, ROOM } from './layout'
 import { registerCamera, sceneCamera } from '../state/camera'
 import { motion, usePaused } from '../state/motion'
+import { trips } from '../state/trips'
 import styles from './SceneControls.module.css'
 
 const rad = THREE.MathUtils.degToRad
@@ -82,6 +83,7 @@ export function SceneCameraControls(): JSX.Element {
         void controls.setFocalOffset(0, 0, 0, animate())
       },
       reset: () => {
+        trips.reset()
         void controls.setLookAt(home.position.x, home.position.y, home.position.z, home.target.x, home.target.y, home.target.z, animate())
         void controls.setFocalOffset(0, 0, 0, animate())
       }

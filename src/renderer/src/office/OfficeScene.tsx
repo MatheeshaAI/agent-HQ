@@ -1,10 +1,11 @@
 // The cinematic 3D office at the centre of Agent HQ. Fills its parent; the scene floats on black.
-import { Suspense, useLayoutEffect, useMemo, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import type { AgentId, AgentStatus, GraphData } from '@shared/types'
-import { BOOKSHELVES, CAMERA, DESKS, FACING, PLANTS, SEAT_OFFSET, type DeskSpot } from './layout'
+import { BOOKSHELVES, CAMERA, DESKS, FACING, PLANTS } from './layout'
+import { seatOf } from './routes'
 import { MaterialsContext, useOfficeMaterials } from './materials'
 import Room from './room/Room'
 import LeftWall from './room/LeftWall'
@@ -16,6 +17,11 @@ import MeetingRoom from './furniture/MeetingRoom'
 import Lounge from './furniture/Lounge'
 import Extras from './furniture/Extras'
 import Agent, { Staff } from './agents/Agent'
+import { Choreographer } from './agents/choreography'
+import { useHandoffs } from './agents/useHandoffs'
+import { motion } from '../state/motion'
+import { trips } from '../state/trips'
+import { voice } from '../state/voice'
 import Lighting from './lights/Lighting'
 import Effects from './Effects'
 import StaticBatch from './StaticBatch'
@@ -49,17 +55,16 @@ function CameraRig(): null {
   return null
 }
 
-/** Floor position of the seat at a desk. */
-function seatOf(desk: DeskSpot): [number, number] {
-  const s = Math.sin(desk.rotation)
-  const c = Math.cos(desk.rotation)
-  const shift = desk.seat ?? 0
-  return [desk.at[0] + c * SEAT_OFFSET + s * shift, desk.at[1] - s * SEAT_OFFSET + c * shift]
-}
-
 function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps): JSX.Element {
   const materials = useOfficeMaterials()
   const byId = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents])
+  const choreo = useMemo(() => new Choreographer(voice.set), [])
+  useHandoffs(choreo, agents)
+  useEffect(() => trips.connect(() => choreo.reset()), [choreo])
+  // Pausing (or reduced motion) freezes anyone mid-walk where they are.
+  useFrame((_, dt) => {
+    if (!motion.isCalm()) choreo.update(dt)
+  }, -1)
 
   return (
     <MaterialsContext.Provider value={materials}>
@@ -105,6 +110,7 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
             seat={seatOf(desk)}
             facing={facing}
             phase={i * 1.37}
+            pose={choreo.poses[status.id]}
             onClick={onAgentClick}
           />
         )

@@ -113,7 +113,7 @@ try {
   await page.waitForTimeout(500)
   // 8. The Agent Status list is gone from the rail; clicking an agent in the office opens its drawer.
   check('rail has no Agent Status list', (await page.getByText('Agent Status', { exact: true }).count()) === 0)
-  await page.mouse.click(700, 590)
+  await page.getByRole('button', { name: /^Axel:/ }).click()
   const drawerPanel = page.getByRole('complementary', { name: /Axel/ })
   await drawerPanel.waitFor({ timeout: 10_000 }).catch(() => {})
   check('clicking an agent opens its drawer', (await drawerPanel.count()) === 1)
