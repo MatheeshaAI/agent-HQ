@@ -77,8 +77,11 @@ async function openAiCompatible<S extends z.ZodType>(config: ProviderConfig, sys
 }
 
 async function claudeCode(config: ProviderConfig, system: string, prompt: string): Promise<string> {
-  const args = ['-p', '--output-format', 'json', '--model', config.model, '--permission-mode', 'plan', `${system}\n\n${prompt}`]
-  const output = await runProcess(config.command || 'claude', args, tmpdir())
+  if (!/^[A-Za-z0-9._:\/-]+$/.test(config.model)) throw new LlmError('Invalid model ID')
+  // The prompt can be hundreds of KB (whole source documents), so it goes to stdin: Windows
+  // limits a command line to about 32 KB.
+  const args = ['-p', '--output-format', 'json', '--model', config.model, '--permission-mode', 'plan']
+  const output = await runProcess(config.command || 'claude', args, tmpdir(), `${system}\n\n${prompt}`)
   try {
     const response = JSON.parse(output) as { result?: string }
     return response.result ?? output
@@ -243,13 +246,17 @@ function parseArgs(value: string): string[] {
   return value.match(/"[^"]*"|'[^']*'|\S+/g)?.map((part) => part.replace(/^['"]|['"]$/g, '')) ?? []
 }
 
-function runProcess(command: string, args: string[], cwd: string): Promise<string> {
+function runProcess(command: string, args: string[], cwd: string, input = ''): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(command, args, { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk })
     child.stderr.setEncoding('utf8').on('data', (chunk: string) => { stderr = (stderr + chunk).slice(-4000) })
+    // A child that exits before reading everything can trip EPIPE on our write; that must not crash.
+    child.stdin.on('error', () => {})
+    if (input) child.stdin.write(`${input}`, () => child.stdin.end())
+    else child.stdin.end()
     const timer = setTimeout(() => child.kill(), 180_000)
     child.on('error', (error) => { clearTimeout(timer); reject(new LlmError(`Could not start ${command}: ${error.message}`)) })
     child.on('close', (code) => {
