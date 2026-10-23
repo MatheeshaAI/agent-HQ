@@ -1,5 +1,6 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess, type ChildProcessByStdio, type SpawnOptions, type SpawnOptionsWithStdioTuple, type StdioNull, type StdioPipe } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import type { Readable, Writable } from 'node:stream'
 import type { BetaContentBlockParam } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { z } from 'zod/v4'
 import type { ModelOption, ProviderId } from '@shared/types'
@@ -102,7 +103,7 @@ async function acp(config: ProviderConfig, system: string, prompt: string, conte
   const command = config.command.trim()
   if (!command) throw new LlmError('Enter the executable for an ACP-compatible agent in Settings')
   const args = parseArgs(config.args)
-  const child = spawn(command, args, { cwd: tmpdir(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawnProgram(command, args, { cwd: tmpdir(), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
   let buffer = ''
   let output = ''
   let nextId = 1
@@ -165,7 +166,7 @@ async function acp(config: ProviderConfig, system: string, prompt: string, conte
 
 async function listAcpModels(config: ProviderConfig): Promise<ModelOption[]> {
   if (!config.command.trim()) return []
-  const child = spawn(config.command.trim(), parseArgs(config.args), { cwd: tmpdir(), windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] })
+  const child = spawnProgram(config.command.trim(), parseArgs(config.args), { cwd: tmpdir(), windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] })
   let buffer = ''
   let nextId = 1
   const waiters = new Map<number, { resolve(value: unknown): void; reject(error: Error): void }>()
@@ -254,9 +255,28 @@ function parseArgs(value: string): string[] {
   return value.match(/"[^"]*"|'[^']*'|\S+/g)?.map((part) => part.replace(/^['"]|['"]$/g, '')) ?? []
 }
 
+/**
+ * Spawns a program that may be a .cmd/.bat shim: Node's spawn cannot start those
+ * directly on Windows, so the work goes through cmd.exe with a carefully quoted
+ * command line instead.
+ */
+export function spawnProgram(command: string, args: readonly string[], options: SpawnOptionsWithStdioTuple<StdioPipe, StdioPipe, StdioPipe>): ChildProcessByStdio<Writable, Readable, Readable>
+export function spawnProgram(command: string, args: readonly string[], options: SpawnOptionsWithStdioTuple<StdioPipe, StdioPipe, StdioNull>): ChildProcessByStdio<Writable, Readable, null>
+export function spawnProgram(command: string, args: readonly string[], options?: SpawnOptions): ChildProcess
+export function spawnProgram(command: string, args: readonly string[], options: SpawnOptions = {}): ChildProcess {
+  if (process.platform !== 'win32' || /\.(exe|com)$/i.test(command)) return spawn(command, args, options)
+  const tokens = [command, ...args]
+  if (tokens.some((token) => /["%^&|<>\r\n]/.test(token))) throw new LlmError('Unsupported character in command or argument')
+  // With /d /s /c and verbatim arguments, cmd strips the outer quotes of the last token
+  // again, so `""claude" "--version""` becomes the command `"claude" "--version"` and cmd
+  // itself resolves shim resolution via PATH and PATHEXT.
+  const commandLine = tokens.map((token) => `"${token}"`).join(' ')
+  return spawn(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], { ...options, windowsVerbatimArguments: true })
+}
+
 function runProcess(command: string, args: string[], cwd: string, input = ''): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = spawnProgram(command, args, { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
     child.stdout.setEncoding('utf8').on('data', (chunk: string) => { stdout += chunk })
