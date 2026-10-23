@@ -120,6 +120,8 @@ try {
   await page.getByRole('button', { name: /^Sage,/ }).click()
   await page.getByLabel('Private message to Sage').fill('hello')
   await page.keyboard.press('Enter')
+  const voiceBars = await page.locator('.hq-agent-card__voice').first().waitFor({ timeout: 3000 }).then(() => true, () => false)
+  check('speaking cue shows while a reply is generated', voiceBars)
   await page.getByRole('button', { name: /^Rex,/ }).click()
   check('each agent keeps its own conversation', (await page.getByText('hello', { exact: true }).count()) === 0)
   await page.getByRole('button', { name: /^Sage,/ }).click()

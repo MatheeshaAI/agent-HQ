@@ -1,5 +1,6 @@
 import type { AgentId } from '@shared/types'
 import { createStore, useStore } from './store'
+import { voice } from './voice'
 
 export interface ChatMessage {
   id: string
@@ -25,7 +26,11 @@ export const chat = {
   /** Placeholder until the backend is connected: the reply is simulated. */
   send(agentId: AgentId, text: string): void {
     append(agentId, 'user', text)
-    setTimeout(() => append(agentId, 'agent', 'Got it. (Simulated reply.)'), 600)
+    voice.set(agentId, true)
+    setTimeout(() => {
+      append(agentId, 'agent', 'Got it. (Simulated reply.)')
+      voice.set(agentId, false)
+    }, 1800)
   }
 }
 

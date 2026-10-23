@@ -4,6 +4,7 @@ import { useSnapshot } from '../../state/snapshot'
 import { drawer, useDrawerAgent } from '../../state/drawer'
 import { chat, useChatHistory } from '../../state/chat'
 import { agentPresence, agentStateLabel, agentStateTone } from '../../state/derived'
+import { IDENTITIES } from '../../office/agents/identities'
 import { AgentPortrait } from '../common/AgentPortrait'
 import { StatusChip, StatusDot } from '../common/StatusDot'
 import styles from './AgentDrawer.module.css'
@@ -52,6 +53,7 @@ export function AgentDrawer(): JSX.Element | null {
             aria-pressed={a.id === agent.id}
             aria-label={`${a.name}, ${a.role}, ${agentPresence(a.state).label}`}
             title={`${a.name} · ${a.role}`}
+            style={a.id === agent.id ? { borderColor: IDENTITIES[a.id].accent } : undefined}
             onClick={() => drawer.open(a.id)}
           >
             <AgentPortrait id={a.id} size={34} />
