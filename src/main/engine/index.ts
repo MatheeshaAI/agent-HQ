@@ -22,6 +22,7 @@ export function startEngine(win: BrowserWindow): void {
     dataDir,
     defaults: {
       knowledgeDir: process.env.AGENT_HQ_DATA_DIR ? join(dataDir, 'knowledge') : join(app.getPath('documents'), 'Agent HQ Knowledge'),
+      documentsDir: app.getPath('documents'),
       envApiKey: process.env.ANTHROPIC_API_KEY
     },
     codec: safeStorageCodec,

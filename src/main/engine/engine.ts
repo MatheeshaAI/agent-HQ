@@ -140,6 +140,15 @@ export class Engine {
     return this.settings.view()
   }
 
+  listRooms() { return this.settings.listRooms() }
+  async switchRoom(id: string) {
+    const changed = await this.settings.switchRoom(id)
+    if (changed) { this.state.setSettings(this.settings.view()); await this.openKnowledge(this.settings.knowledgeDir()) }
+    return this.settings.listRooms()
+  }
+  async addRoom(name: string) { const rooms = await this.settings.addRoom(name); this.state.setSettings(this.settings.view()); return rooms }
+  async renameRoom(id: string, name: string) { const rooms = await this.settings.renameRoom(id, name); this.state.setSettings(this.settings.view()); return rooms }
+
   listModels(): Promise<ModelOption[]> {
     const view = this.settings.view()
     return listProviderModels({ providerId: view.providerId, apiKey: this.settings.resolvedApiKey(), baseUrl: view.baseUrl, command: view.command, args: view.args, model: view.model })
