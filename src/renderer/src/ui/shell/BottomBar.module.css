@@ -310,3 +310,21 @@
   flex: none;
   color: #c3cbe0;
 }
+
+@media (max-width: 760px) {
+  .bottom {
+    border-right: none;
+    border-top-right-radius: 0;
+  }
+
+  .bar {
+    height: 52px;
+    margin: 6px 8px;
+    padding: 0 8px;
+  }
+
+  .janitor,
+  .hints {
+    display: none;
+  }
+}

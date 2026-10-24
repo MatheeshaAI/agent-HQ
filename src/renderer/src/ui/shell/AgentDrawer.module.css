@@ -230,3 +230,15 @@
 .broadcast:hover {
   background: rgba(245, 158, 11, 0.12);
 }
+
+/* Phones: the drawer is a sheet over the lower part of the office; the view controls stay above it. */
+@media (max-width: 760px) {
+  .drawer {
+    top: 56px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-width: none;
+  }
+}

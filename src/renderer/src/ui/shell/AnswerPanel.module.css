@@ -180,3 +180,11 @@
   color: #fff;
   background: rgba(59, 130, 246, 0.26);
 }
+
+@media (max-width: 760px) {
+  .panel {
+    right: -4px;
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 220px);
+  }
+}

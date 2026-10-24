@@ -184,3 +184,9 @@
 .taskTime {
   margin-top: 6px;
 }
+
+@media (max-width: 760px) {
+  .rail {
+    display: none;
+  }
+}

@@ -861,3 +861,18 @@
 .fieldLabel .field {
   flex: none;
 }
+
+@media (max-width: 760px) {
+  .frame {
+    inset: 6px;
+  }
+
+  .frameHeader {
+    padding: 10px 14px;
+  }
+
+  .frameBody {
+    padding: 14px;
+    overflow-x: auto;
+  }
+}
