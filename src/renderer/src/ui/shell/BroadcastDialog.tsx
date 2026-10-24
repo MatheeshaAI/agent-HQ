@@ -47,7 +47,6 @@ export function BroadcastDialog({ onClose }: { onClose: () => void }): JSX.Eleme
         <h2 id="broadcast-title" className={styles.title}>
           Broadcast to all agents
         </h2>
-        <div className={styles.notice}>Simulated replies until the backend is connected.</div>
 
         {result ? (
           <>

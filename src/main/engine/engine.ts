@@ -35,8 +35,8 @@ export interface EngineOptions {
   /** Receives every (throttled) snapshot */
   push: (snapshot: AppSnapshot) => void
   now?: () => number
-  /** How long a simulated chat reply takes (default 1200 ms) */
-  chatReplyDelayMs?: number
+  /** How long an agent may take to answer a chat message (default 60 s) */
+  chatTimeoutMs?: number
 }
 
 /**
@@ -50,14 +50,13 @@ export class Engine {
   private readonly llm: Llm
   private readonly janitor: Janitor
   private readonly queue: IngestQueue
-  /** Private messages and broadcasts to the agents (replies are simulated for now). */
+  /** Private messages and broadcasts to the agents (answered by the configured provider). */
   readonly chat: ChatService
   private readonly now: () => number
   private fullCheck: Promise<JanitorReport> | null = null
 
   private constructor(options: EngineOptions) {
     this.now = options.now ?? Date.now
-    this.chat = new ChatService(this.now, options.chatReplyDelayMs ?? 1200)
     this.settings = new SettingsStore(options.dataDir, options.defaults, options.codec)
     this.state = new EngineState(this.settings.view(), options.push, this.now)
     this.llm = createProvider(() => ({
@@ -68,6 +67,14 @@ export class Engine {
       args: this.settings.view().args,
       model: this.settings.model()
     }))
+    this.chat = new ChatService({
+      now: this.now,
+      llm: this.llm,
+      providerReady: () => this.settings.providerReady(),
+      snapshot: () => this.state.snapshot(),
+      wiki: () => this.kb?.wiki.list() ?? [],
+      timeoutMs: options.chatTimeoutMs
+    })
     this.janitor = new Janitor(this.state, this.llm, () => this.settings.providerReady(), this.now)
     this.queue = new IngestQueue({
       state: this.state,

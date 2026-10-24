@@ -240,7 +240,7 @@ export function installMockApi(params: URLSearchParams): void {
       await delay(600)
       const at = Date.now()
       const sent = { id: `u${at}`, from: 'user' as const, text, at, channel: 'private' as const, simulated: false }
-      return { sent, reply: { id: `a${at}`, from: 'agent' as const, text: `Noted: "${text}"`, at, channel: 'private' as const, simulated: true } }
+      return { sent, reply: { id: `a${at}`, from: 'agent' as const, text: `Noted: "${text}"`, at, channel: 'private' as const, simulated: false } }
     },
     async chatHistory() {
       return []
