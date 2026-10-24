@@ -46,3 +46,11 @@
   margin: 0 3px;
   background: #1d2532;
 }
+
+@media (max-width: 760px) {
+  .bar {
+    top: 8px;
+    bottom: auto;
+    left: 8px;
+  }
+}

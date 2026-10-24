@@ -123,7 +123,8 @@ function detectStep(body) {
       pages: 'linker',
       'markdown,summary,tags': 'writer',
       contradictions: 'checker',
-      'answer,citations': 'answer'
+      'answer,citations': 'answer',
+      reply: 'chat'
     }[keys] ?? 'unknown'
   )
 }
@@ -311,6 +312,14 @@ const STEPS = {
       })
     }
     return { contradictions }
+  },
+
+  chat(input) {
+    const who = /You are (\w+), the ([\w ]+) in Agent HQ/.exec(input.system)
+    const status = input.sections.context?.status
+    const message = String(input.sections.message ?? '')
+    const turns = Array.isArray(input.sections.conversation) ? input.sections.conversation.length : 0
+    return { reply: `${who?.[1] ?? 'Agent'} the ${who?.[2] ?? 'agent'} here. I am ${status?.state ?? 'unknown'}: ${status?.activity ?? 'no status'}. You said: "${message}" (${turns} earlier messages).` }
   },
 
   answer(input) {

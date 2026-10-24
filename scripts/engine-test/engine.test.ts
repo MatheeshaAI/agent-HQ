@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
-import type { AppSnapshot, SourceItem } from '../../src/shared/types'
+import { AGENTS, type AppSnapshot, type SourceItem } from '../../src/shared/types'
 import { ChatService } from '../../src/main/engine/chat'
 import { Engine } from '../../src/main/engine/engine'
 import { spawnProgram } from '../../src/main/engine/llm/providers'
@@ -486,25 +486,46 @@ test('spawnProgram runs the claude shim and prints a version', { skip: !claudeOn
   console.log(`claude --version via spawnProgram: ${output.trim()}`)
 })
 
-test('private chat reaches only the agent it names, and is marked simulated', async () => {
-  const chat = new ChatService(Date.now, 0)
+test('private chat reaches only the agent it names, with a real reply built from its role and live status', async () => {
+  await engine.saveSettings({ apiKey: 'test-secret-key' })
+  const chat = engine.chat
   const exchange = await chat.send('sage', '  What are you reading?  ')
   assert.equal(exchange.sent.text, 'What are you reading?')
   assert.equal(exchange.sent.channel, 'private')
-  assert.equal(exchange.reply.simulated, true)
+  assert.equal(exchange.reply.simulated, false)
+  assert.match(exchange.reply.text, /^Sage the Reader here\./, 'prompt carries the agent name and role')
+  const status = engine.getSnapshot().agents.find((a) => a.id === 'sage')!
+  assert.ok(exchange.reply.text.includes(`I am ${status.state}: ${status.activity}.`), 'prompt carries live status')
   assert.equal(chat.history('sage').length, 2)
   for (const other of ['pip', 'rex', 'nova', 'axel', 'muse'] as const) assert.equal(chat.history(other).length, 0, `${other} heard nothing`)
+  const second = await chat.send('sage', 'And now?')
+  assert.match(second.reply.text, /\(2 earlier messages\)/, 'the agent sees only its own history')
   await assert.rejects(chat.send('sage', '   '), /Write a message/)
   await assert.rejects(chat.send('sage', 'x'.repeat(2001)), /up to 2000/)
 })
 
 test('broadcast reaches all six agents with a result each, apart from private chat', async () => {
-  const chat = new ChatService(Date.now, 0)
+  const chat = engine.chat
   await chat.send('pip', 'private note')
   const result = await chat.broadcast('Team: new sources are coming.')
   assert.deepEqual(result.deliveries.map((d) => d.agent), ['pip', 'sage', 'rex', 'nova', 'axel', 'muse'])
-  assert.ok(result.deliveries.every((d) => d.status === 'delivered' && d.sent?.channel === 'broadcast' && d.reply?.simulated))
+  assert.ok(result.deliveries.every((d) => d.status === 'delivered' && d.sent?.channel === 'broadcast' && d.reply?.simulated === false))
+  assert.ok(result.deliveries.every((d) => d.reply!.text.startsWith(`${AGENTS.find((a) => a.id === d.agent)!.name} the `)), 'each agent answered as itself')
   assert.equal(chat.history('pip').length, 4, 'pip: private pair plus broadcast pair')
   assert.equal(chat.history('muse').filter((m) => m.channel === 'private').length, 0, 'no private messages leaked to muse')
   await assert.rejects(chat.broadcast(''), /Write a message/)
+})
+
+test('a failing provider gives a failed delivery per agent and nothing fake', async () => {
+  await fake('/__fake/script', { status: 401, count: 3 })
+  const result = await engine.chat.broadcast('Anyone there?')
+  const failed = result.deliveries.filter((d) => d.status === 'failed')
+  assert.equal(failed.length, 3, 'the three scripted failures failed')
+  assert.ok(failed.every((d) => d.error && !d.reply))
+  assert.ok(result.deliveries.filter((d) => d.status === 'delivered').every((d) => d.reply && !d.reply.simulated))
+  for (const d of failed) assert.ok(!engine.chat.history(d.agent).some((m) => m.text === 'Anyone there?'), 'an unanswered message is not kept')
+  await fake('/__fake/reset', {})
+  const unready = new ChatService({ now: Date.now, llm: { structured: () => { throw new Error('must not be called') } }, providerReady: () => false, snapshot: () => engine.getSnapshot(), wiki: () => [] })
+  await assert.rejects(unready.send('pip', 'hi'), /No AI provider is set up/)
+  assert.deepEqual(unready.history('pip'), [])
 })

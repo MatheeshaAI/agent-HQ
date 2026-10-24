@@ -152,7 +152,9 @@ function fullSnapshot(params: URLSearchParams): AppSnapshot {
       knowledgeDir: '/Users/matheesha/Agent HQ',
       apiKeySet: params.get('nokey') !== '1',
       model: 'claude-sonnet-4-5',
-      userName: 'Matheesha Sarathchandra'
+      userName: 'Matheesha Sarathchandra',
+      rooms: [{ id: 'main', name: 'Main', knowledgeDir: '/Users/matheesha/Agent HQ' }],
+      currentRoomId: 'main'
     },
     stats: { pages: 132, topics: 35, sources: 424 },
     agents: agents(),
@@ -238,7 +240,7 @@ export function installMockApi(params: URLSearchParams): void {
       await delay(600)
       const at = Date.now()
       const sent = { id: `u${at}`, from: 'user' as const, text, at, channel: 'private' as const, simulated: false }
-      return { sent, reply: { id: `a${at}`, from: 'agent' as const, text: `Noted: "${text}"`, at, channel: 'private' as const, simulated: true } }
+      return { sent, reply: { id: `a${at}`, from: 'agent' as const, text: `Noted: "${text}"`, at, channel: 'private' as const, simulated: false } }
     },
     async chatHistory() {
       return []

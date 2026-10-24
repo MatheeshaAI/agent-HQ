@@ -318,3 +318,39 @@ button.urlAction:hover {
 .menuItem svg {
   color: var(--text-muted);
 }
+
+@media (max-width: 760px) {
+  .bar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .lights,
+  .stats,
+  .url,
+  .system,
+  .brandTagline,
+  .userName,
+  .chevron {
+    display: none;
+  }
+
+  .brand {
+    width: auto;
+    gap: 8px;
+  }
+
+  .brandName {
+    font-size: 16px;
+  }
+
+  .rooms {
+    margin-left: auto;
+  }
+
+  .roomPrompt {
+    top: 52px;
+    left: 10px;
+    right: 10px;
+  }
+}

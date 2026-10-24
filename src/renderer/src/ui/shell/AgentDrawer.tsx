@@ -95,7 +95,6 @@ function Conversation({ agentId, name }: { agentId: AgentId; name: string }): JS
   return (
     <section className={styles.conversation}>
       <div className={styles.private}>Private message to {name}</div>
-      <div className={styles.notice}>Simulated replies until the backend is connected.</div>
       <ul ref={listRef} className={styles.messages} aria-live="polite">
         {messages.length === 0 && <li className={styles.empty}>No messages yet.</li>}
         {messages.map((m) => (

@@ -177,3 +177,27 @@
     transform: scaleY(0.7);
   }
 }
+
+/* Phones: a compact name, status and dot; the role and activity are in the drawer. */
+@media (max-width: 760px) {
+  .hq-agent-card {
+    min-width: 0;
+    height: 38px;
+    gap: 6px;
+    padding: 0 9px 0 6px;
+  }
+
+  .hq-agent-card__icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .hq-agent-card__icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .hq-agent-card__role {
+    display: none;
+  }
+}
