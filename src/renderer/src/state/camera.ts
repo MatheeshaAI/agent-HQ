@@ -8,7 +8,12 @@ export interface CameraCommands {
   fit(): void
   /** Restores the original view exactly. */
   reset(): void
+  /** Flies to one room's home view, or to a view that takes in all three rooms. */
+  focusRoom(room: FocusTarget): void
 }
+
+/** A room id (brain, office, personal), or 'all' for the three rooms side by side. */
+export type FocusTarget = 'brain' | 'office' | 'personal' | 'all'
 
 let current: CameraCommands | null = null
 
@@ -22,5 +27,11 @@ export const sceneCamera: CameraCommands = {
   rotate: (direction) => current?.rotate(direction),
   pan: (dx, dy) => current?.pan(dx, dy),
   fit: () => current?.fit(),
-  reset: () => current?.reset()
+  reset: () => current?.reset(),
+  focusRoom: (room) => current?.focusRoom(room)
+}
+
+/** Flies the office camera to a room, or to all three rooms; does nothing while the office is not mounted. */
+export function focusRoom(room: FocusTarget): void {
+  sceneCamera.focusRoom(room)
 }

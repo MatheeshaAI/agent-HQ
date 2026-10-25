@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { AgentId, AgentStatus } from '@shared/types'
 import { rigSeated, type RigState } from './avatarRig'
-import { IDENTITIES } from './identities'
+import { identityOf } from './identities'
 import type { Pose } from './choreography'
 import { motion } from '../../state/motion'
 import { useSpeaking } from '../../state/voice'
@@ -24,9 +24,17 @@ interface Outfit {
 }
 
 /** Each agent's jacket and hair colour (see identities.ts); trousers and shoes stay near-black for everyone. */
-const OUTFITS = Object.fromEntries(
-  Object.entries(IDENTITIES).map(([id, { jacket, hair }]) => [id, { top: jacket, bottom: '#070708', hair }])
-) as Record<AgentId, Outfit>
+/** Cached per agent: AvatarBody rebuilds its clone whenever the outfit object changes. */
+const outfits = new Map<AgentId, Outfit>()
+function outfitOf(id: AgentId): Outfit {
+  let outfit = outfits.get(id)
+  if (!outfit) {
+    const { jacket, hair } = identityOf(id)
+    outfit = { top: jacket, bottom: '#070708', hair }
+    outfits.set(id, outfit)
+  }
+  return outfit
+}
 
 /** Outfit for the non-interactive colleagues at the shared benches. */
 const STAFF_OUTFIT: Outfit = { top: '#0a0c12', bottom: '#070708', hair: '#0b0a09' }
@@ -210,7 +218,7 @@ export default function Agent({ status, seat, facing, phase, pose, onClick }: Ag
 
   return (
     <group ref={group} position={[seat[0], 0, seat[1]]}>
-      <AvatarBody outfit={OUTFITS[status.id]} state={speaking ? 'speaking' : status.state} facing={facing} phase={phase} pose={pose} />
+      <AvatarBody outfit={outfitOf(status.id)} state={speaking ? 'speaking' : status.state} facing={facing} phase={phase} pose={pose} />
       {/* Invisible hit volume: raycasting a box is far cheaper than a skinned mesh on every pointer move. */}
       <mesh
         geometry={UNIT_BOX}

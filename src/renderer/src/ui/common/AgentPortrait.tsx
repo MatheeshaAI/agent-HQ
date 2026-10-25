@@ -1,5 +1,5 @@
 import type { AgentId } from '@shared/types'
-import { AGENT_ICONS, AGENT_TONES } from './icons'
+import { agentIcon, agentTone } from './icons'
 import { IconTile } from './IconTile'
 
 const PORTRAITS = import.meta.glob('../../assets/portraits/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>
@@ -10,7 +10,7 @@ const PORTRAITS = import.meta.glob('../../assets/portraits/*.png', { eager: true
  */
 export function AgentPortrait({ id, size }: { id: AgentId; size: number }): JSX.Element {
   const src = PORTRAITS[`../../assets/portraits/${id}.png`]
-  if (!src) return <IconTile icon={AGENT_ICONS[id]} tone={AGENT_TONES[id]} size={size} shape="rounded" />
+  if (!src) return <IconTile icon={agentIcon(id)} tone={agentTone(id)} size={size} shape="rounded" />
   return (
     <img
       src={src}

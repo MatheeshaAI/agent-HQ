@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Check, Cpu, FolderCog, FolderOpen, KeyRound, LogIn, Save, Trash2, UserRound } from 'lucide-react'
-import type { ModelOption, ProviderId, SettingsUpdate, SettingsView as Settings } from '@shared/types'
+import { Bot, Check, Clock, Cpu, FolderCog, FolderOpen, KeyRound, LogIn, Save, Trash2, UserRound } from 'lucide-react'
+import type { AgentDef, ModelOption, ProviderId, SettingsUpdate, SettingsView as Settings } from '@shared/types'
 import { useSnapshot } from '../../state/snapshot'
+import { ROOM_LABEL } from '../../state/rooms'
 import { Button } from '../common/Button'
 import { ViewFrame } from './ViewFrame'
 import styles from './views.module.css'
@@ -35,6 +36,7 @@ export function SettingsView(): JSX.Element {
       <div className={styles.settings}>
         <KnowledgeFolder settings={settings} />
         <ProviderSettings settings={settings} />
+        <AgentSettings settings={settings} />
       </div>
     </ViewFrame>
   )
@@ -191,6 +193,178 @@ const PROVIDERS: { id: ProviderId; name: string; mode: 'key' | 'cli' | 'acp' }[]
   { id: 'kilocode', name: 'Kilo Code via ACP', mode: 'acp' },
   { id: 'acp', name: 'Custom ACP agent', mode: 'acp' }
 ]
+
+type ScheduleMode = 'off' | 'interval' | 'daily'
+
+/** Form state for one agent. Strings, so half-typed values are kept until they are valid. */
+interface AgentDraft {
+  name: string
+  role: string
+  prompt: string
+  enabled: boolean
+  mode: ScheduleMode
+  everyMinutes: string
+  at: string
+}
+
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
+
+function draftOf(def: AgentDef): AgentDraft {
+  return {
+    name: def.name,
+    role: def.role,
+    prompt: def.prompt ?? '',
+    enabled: def.enabled,
+    mode: def.schedule?.mode ?? 'off',
+    everyMinutes: String(def.schedule?.everyMinutes ?? 60),
+    at: def.schedule?.at ?? '09:00'
+  }
+}
+
+/** The agent with the draft applied, or an error message for the first invalid field. */
+function applyDraft(def: AgentDef, draft: AgentDraft): AgentDef | string {
+  const name = draft.name.trim()
+  if (!name) return 'Give the agent a name'
+  const next: AgentDef = { ...def, name, role: draft.role.trim(), prompt: draft.prompt.trim() || undefined, enabled: draft.enabled }
+  if (def.kind !== 'room') {
+    delete next.schedule
+    return next
+  }
+  if (draft.mode === 'interval') {
+    const minutes = Number(draft.everyMinutes)
+    if (!Number.isInteger(minutes) || minutes < 1) return 'Enter a whole number of minutes (1 or more)'
+    next.schedule = { mode: 'interval', everyMinutes: minutes }
+  } else if (draft.mode === 'daily') {
+    if (!TIME_PATTERN.test(draft.at)) return 'Enter a time as HH:MM'
+    next.schedule = { mode: 'daily', at: draft.at }
+  } else {
+    next.schedule = { mode: 'off' }
+  }
+  return next
+}
+
+function AgentSettings({ settings }: { settings: Settings }): JSX.Element {
+  const editable = settings.agentDefs.filter((def) => def.kind !== 'pipeline')
+  return (
+    <Section
+      icon={<Bot size={18} />}
+      title="Agents"
+      description="Name, role and instructions for Chief and the room agents. Room agents run by hand or on a schedule; schedules start off."
+    >
+      <div className={styles.agentEditList}>
+        {editable.map((def) => (
+          <AgentEditor key={def.id} def={def} />
+        ))}
+      </div>
+    </Section>
+  )
+}
+
+function AgentEditor({ def }: { def: AgentDef }): JSX.Element {
+  const [save, status, busy] = useSave()
+  const [draft, setDraft] = useState<AgentDraft>(() => draftOf(def))
+  const [error, setError] = useState('')
+  // Reset the form when the saved agent changes, but not on every snapshot push while editing.
+  const signature = JSON.stringify(def)
+  useEffect(() => {
+    setDraft(draftOf(def))
+    setError('')
+  }, [signature]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isRoom = def.kind === 'room'
+  const dirty = JSON.stringify(draft) !== JSON.stringify(draftOf(def))
+  const update = (patch: Partial<AgentDraft>): void => {
+    setDraft((current) => ({ ...current, ...patch }))
+    setError('')
+  }
+
+  const submit = async (event: FormEvent): Promise<void> => {
+    event.preventDefault()
+    const next = applyDraft(def, draft)
+    if (typeof next === 'string') {
+      setError(next)
+      return
+    }
+    // Read the current list first: the agent list is saved whole, so a stale copy could undo another edit.
+    const current = await window.api.getSettings()
+    const agentDefs = current.agentDefs.map((item) => (item.id === def.id ? next : item))
+    await save({ agentDefs }, `${next.name} saved`)
+  }
+
+  return (
+    <form className={styles.agentEditor} onSubmit={submit}>
+      <div className={styles.agentEditorHead}>
+        <strong>{def.name}</strong>
+        <span className={styles.muted}>
+          {def.kind === 'chief' ? 'Chief' : `${ROOM_LABEL[def.room]} room`}
+        </span>
+        <label>
+          <input type="checkbox" checked={draft.enabled} onChange={(e) => update({ enabled: e.target.checked })} /> Enabled
+        </label>
+      </div>
+      <div className={styles.fieldGrid}>
+        <label className={styles.fieldLabel}>
+          <span>Name</span>
+          <input className={styles.field} value={draft.name} onChange={(e) => update({ name: e.target.value })} />
+        </label>
+        <label className={styles.fieldLabel}>
+          <span>Role</span>
+          <input className={styles.field} value={draft.role} onChange={(e) => update({ role: e.target.value })} />
+        </label>
+      </div>
+      <label className={styles.fieldLabel}>
+        <span>Instructions</span>
+        <textarea
+          className={`${styles.field} ${styles.textarea}`}
+          value={draft.prompt}
+          onChange={(e) => update({ prompt: e.target.value })}
+          rows={4}
+          spellCheck={false}
+        />
+      </label>
+      {isRoom && (
+        <div className={styles.fieldGrid}>
+          <label className={styles.fieldLabel}>
+            <span>
+              <Clock size={13} /> Schedule
+            </span>
+            <select className={styles.field} value={draft.mode} onChange={(e) => update({ mode: e.target.value as ScheduleMode })}>
+              <option value="off">Off (run by hand)</option>
+              <option value="interval">Every N minutes</option>
+              <option value="daily">Daily at a time</option>
+            </select>
+          </label>
+          {draft.mode === 'interval' && (
+            <label className={styles.fieldLabel}>
+              <span>Minutes</span>
+              <input
+                className={styles.field}
+                type="number"
+                min={1}
+                step={1}
+                value={draft.everyMinutes}
+                onChange={(e) => update({ everyMinutes: e.target.value })}
+              />
+            </label>
+          )}
+          {draft.mode === 'daily' && (
+            <label className={styles.fieldLabel}>
+              <span>Time</span>
+              <input className={styles.field} type="time" value={draft.at} onChange={(e) => update({ at: e.target.value })} />
+            </label>
+          )}
+        </div>
+      )}
+      <div className={styles.buttonRow}>
+        <Button type="submit" variant="primary" icon={Save} busy={busy} disabled={!dirty}>
+          Save agent
+        </Button>
+      </div>
+      {error && <div className={styles.noticeError}>{error}</div>}
+      <StatusLine status={status} />
+    </form>
+  )
+}
 
 function ProviderSettings({ settings }: { settings: Settings }): JSX.Element {
   const [key, setKey] = useState('')

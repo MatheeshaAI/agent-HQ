@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import {
-  AGENTS,
   type ActivityItem,
   type ActivityKind,
+  type AgentDef,
   type AgentId,
   type AgentState,
   type AgentStatus,
@@ -32,6 +32,8 @@ interface AgentSlot {
   status: AgentStatus
   jobs: { state: AgentState; activity: string }[]
   idleText: string
+  /** Pipeline agents are the ones the office UI draws; other agents keep a slot but are not in the snapshot. */
+  pipeline: boolean
 }
 
 /**
@@ -54,12 +56,21 @@ export class EngineState {
     private readonly push: (snapshot: AppSnapshot) => void,
     private readonly now: () => number = Date.now
   ) {
-    for (const agent of AGENTS) {
-      this.agents.set(agent.id, {
-        status: { id: agent.id, name: agent.name, role: agent.role, state: 'idle', activity: agent.idle, updatedAt: now() },
-        jobs: [],
-        idleText: agent.idle
-      })
+    this.syncAgents(settings.agentDefs)
+  }
+
+  /** Creates slots for new definitions and refreshes names and idle text of existing ones. Job state is kept. */
+  syncAgents(defs: AgentDef[]): void {
+    for (const def of defs) {
+      const idle = def.idle ?? 'Ready for work'
+      const slot = this.agents.get(def.id)
+      if (slot) {
+        slot.status = { ...slot.status, name: def.name, role: def.role, activity: slot.jobs.length > 0 ? slot.status.activity : idle }
+        slot.idleText = idle
+        slot.pipeline = def.kind === 'pipeline'
+        continue
+      }
+      this.agents.set(def.id, this.newSlot(def.id, def.name, def.role, idle, def.kind === 'pipeline'))
     }
   }
 
@@ -67,7 +78,7 @@ export class EngineState {
     return {
       settings: { ...this.settings },
       stats: { ...this.stats },
-      agents: AGENTS.map((a) => ({ ...this.slot(a.id).status })),
+      agents: [...this.agents.values()].filter((slot) => slot.pipeline).map((slot) => ({ ...slot.status })),
       activity: [...this.activity],
       tasks: this.tasks.map((t) => ({ ...t })),
       sources: this.sources.map((s) => (s.pages ? { ...s, pages: [...s.pages] } : { ...s })),
@@ -164,6 +175,7 @@ export class EngineState {
 
   setSettings(settings: SettingsView): void {
     this.settings = settings
+    this.syncAgents(settings.agentDefs)
     this.changed()
   }
 
@@ -194,10 +206,22 @@ export class EngineState {
     }, PUSH_INTERVAL_MS)
   }
 
+  /** The agent's slot. An id without a definition gets a generic slot the first time it is used. */
   private slot(id: AgentId): AgentSlot {
-    const slot = this.agents.get(id)
-    if (!slot) throw new Error(`Unknown agent ${id}`)
+    const existing = this.agents.get(id)
+    if (existing) return existing
+    const slot = this.newSlot(id, id.charAt(0).toUpperCase() + id.slice(1), 'Agent', 'Ready for work', false)
+    this.agents.set(id, slot)
     return slot
+  }
+
+  private newSlot(id: AgentId, name: string, role: string, idle: string, pipeline: boolean): AgentSlot {
+    return {
+      status: { id, name, role, state: 'idle', activity: idle, updatedAt: this.now() },
+      jobs: [],
+      idleText: idle,
+      pipeline
+    }
   }
 
   private showAgent(id: AgentId, error?: string): void {

@@ -2,12 +2,15 @@ import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve } from 'node:path'
 import type {
+  AgentRunInfo,
+  AgentRunResult,
   AppSnapshot,
   AskResult,
   JanitorReport,
   SettingsUpdate,
   SettingsView,
   SourceItem,
+  SourceOrigin,
   WikiPageContent,
   WikiPageMeta
 } from '@shared/types'
@@ -16,6 +19,8 @@ import { KnowledgeBase, type FolderChange } from './knowledgeBase'
 import type { Llm } from './llm/claude'
 import { createProvider, listProviderModels } from './llm/providers'
 import { ChatService } from './chat'
+import { AgentMemoryStore } from './memory'
+import { RoomAgentRunner } from './roomAgents'
 import { askWiki } from './pipeline/ask'
 import { IngestQueue } from './pipeline/ingest'
 import { Janitor, janitorSummary } from './pipeline/janitor'
@@ -50,10 +55,14 @@ export class Engine {
   private readonly llm: Llm
   private readonly janitor: Janitor
   private readonly queue: IngestQueue
+  /** Room agents (Scribe, Triager, ...): on-demand and scheduled notes filed into the Inbox. */
+  private readonly rooms: RoomAgentRunner
   /** Private messages and broadcasts to the agents (answered by the configured provider). */
   readonly chat: ChatService
   private readonly now: () => number
   private fullCheck: Promise<JanitorReport> | null = null
+  /** Agent memory and chat transcripts, in memory/ of the open knowledge folder. */
+  private readonly memory: AgentMemoryStore
 
   private constructor(options: EngineOptions) {
     this.now = options.now ?? Date.now
@@ -67,12 +76,20 @@ export class Engine {
       args: this.settings.view().args,
       model: this.settings.model()
     }))
+    this.memory = new AgentMemoryStore(() => this.kb?.root ?? null)
     this.chat = new ChatService({
+      memory: this.memory,
+      onMemoryError: (agent, error) => this.state.addActivity('error', 'Agent memory not updated', errorMessage(error), agent),
       now: this.now,
       llm: this.llm,
       providerReady: () => this.settings.providerReady(),
       snapshot: () => this.state.snapshot(),
+      agents: () => this.settings.agentDefs(),
       wiki: () => this.kb?.wiki.list() ?? [],
+      chief: {
+        run: (agentId, instruction) => this.runAgent(agentId, instruction),
+        note: (text, origin) => this.addNote(text, origin)
+      },
       timeoutMs: options.chatTimeoutMs
     })
     this.janitor = new Janitor(this.state, this.llm, () => this.settings.providerReady(), this.now)
@@ -83,24 +100,59 @@ export class Engine {
       now: this.now,
       refresh: (kb) => this.refresh(kb)
     })
+    this.rooms = new RoomAgentRunner({
+      dataDir: options.dataDir,
+      llm: this.llm,
+      providerReady: () => this.settings.providerReady(),
+      canFile: () => this.kb !== null,
+      getAgentDefs: () => this.settings.agentDefs(),
+      addNote: (text, origin) => this.addNote(text, origin),
+      wikiPages: () => this.kb?.wiki.list() ?? [],
+      activity: (kind, title, detail, agent) => this.state.addActivity(kind, title, detail, agent),
+      memory: this.memory,
+      now: this.now
+    })
   }
 
   static async start(options: EngineOptions): Promise<Engine> {
     const engine = new Engine(options)
     await engine.boot()
+    await engine.rooms.start()
     return engine
+  }
+
+  /** Runs one room agent now. Returns the outcome; failures are reported, not thrown. */
+  runAgent(agentId: string, instruction?: string): Promise<AgentRunResult> {
+    return this.rooms.runNow(agentId, instruction)
+  }
+
+  /** The agent's memory file (memory/<id>.md in the knowledge folder), '' when it has none. */
+  getAgentMemory(agentId: string): Promise<string> {
+    return this.memory.read(agentId)
+  }
+
+  /** Replaces (or, with '', clears) the agent's memory file. */
+  async setAgentMemory(agentId: string, memory: string): Promise<string> {
+    await this.memory.write(agentId, memory.slice(0, 20_000))
+    return this.memory.read(agentId)
+  }
+
+  /** Last run of each room agent. */
+  agentRuns(): Promise<AgentRunInfo[]> {
+    return this.rooms.infos()
   }
 
   getSnapshot(): AppSnapshot {
     return this.state.snapshot()
   }
 
-  async addFiles(paths: string[]): Promise<SourceItem[]> {
+  /** Adds files to raw/. `origin` records who added them; it defaults to a manual add in the brain room. */
+  async addFiles(paths: string[], origin?: SourceOrigin): Promise<SourceItem[]> {
     const added: SourceItem[] = []
     const errors: string[] = []
     for (const path of paths) {
       try {
-        added.push(await this.receive('Sorting mail', basename(path), () => fileSource(path)))
+        added.push(await this.receive('Sorting mail', basename(path), () => fileSource(path), origin))
       } catch (error) {
         errors.push(errorMessage(error))
       }
@@ -109,12 +161,17 @@ export class Engine {
     return added
   }
 
-  addUrl(url: string): Promise<SourceItem> {
-    return this.receive('Fetching link', url, () => urlSource(url, this.now()))
+  addUrl(url: string, origin?: SourceOrigin): Promise<SourceItem> {
+    return this.receive('Fetching link', url, () => urlSource(url, this.now()), origin)
   }
 
-  addNote(text: string): Promise<SourceItem> {
-    return this.receive('Filing note', 'Note', async () => noteSource(text, this.now()))
+  addNote(text: string, origin?: SourceOrigin): Promise<SourceItem> {
+    return this.receive('Filing note', 'Note', async () => noteSource(text, this.now()), origin)
+  }
+
+  /** IDs and definitions of the agents that exist now. */
+  agentDefs() {
+    return this.settings.agentDefs()
   }
 
   async retrySource(id: string): Promise<void> {
@@ -195,6 +252,7 @@ export class Engine {
     }
     if (result.knowledgeDirChanged) await this.openKnowledge(result.view.knowledgeDir)
     else if ((result.apiKeyChanged || result.providerChanged) && result.view.providerReady) await this.retryMissingKeyFailures()
+    if (update.agentDefs !== undefined) this.rooms.reschedule()
     return result.view
   }
 
@@ -211,6 +269,7 @@ export class Engine {
   }
 
   close(): void {
+    this.rooms.stop()
     this.kb?.unwatch()
     this.state.flush()
   }
@@ -233,6 +292,8 @@ export class Engine {
       this.state.resetSession()
       this.kb = null
     }
+    // Chat histories and memory belong to the folder; reload them from the new one.
+    this.chat.reset()
     let kb: KnowledgeBase
     try {
       kb = await KnowledgeBase.open(dir)
@@ -265,12 +326,12 @@ export class Engine {
   }
 
   /** Pip receives a source: places it in raw/, registers it and queues it for ingestion. */
-  private async receive(activity: string, label: string, prepare: () => Promise<Incoming>): Promise<SourceItem> {
+  private async receive(activity: string, label: string, prepare: () => Promise<Incoming>, origin?: SourceOrigin): Promise<SourceItem> {
     const kb = this.requireKnowledge()
     const job = this.state.beginJob('pip', 'working', activity)
     try {
       const incoming = await prepare()
-      const source = await kb.intake(incoming, (file) => this.register(kb, file))
+      const source = await kb.intake(incoming, (file) => this.register(kb, file, origin))
       job.done()
       return source
     } catch (error) {
@@ -281,7 +342,7 @@ export class Engine {
     }
   }
 
-  private async register(kb: KnowledgeBase, file: RawFile): Promise<SourceItem> {
+  private async register(kb: KnowledgeBase, file: RawFile, origin?: SourceOrigin): Promise<SourceItem> {
     const source = await kb.sources.add({
       id: randomUUID(),
       name: file.name,
@@ -289,7 +350,8 @@ export class Engine {
       path: file.path,
       addedAt: this.now(),
       status: 'queued',
-      size: file.size
+      size: file.size,
+      origin: origin ? { ...origin } : { room: 'brain', kind: 'manual' }
     })
     this.state.addActivity('ingest', 'New source received', source.name, 'pip')
     this.refresh(kb)

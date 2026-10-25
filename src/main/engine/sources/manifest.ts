@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
-import type { SourceItem, SourceKind, SourceStatus } from '@shared/types'
+import type { SourceItem, SourceKind, SourceOrigin, SourceStatus } from '@shared/types'
 import { writeFileAtomic } from '../util/fsx'
+
+/** Used for sources stored before origins existed, and for sources added without one. */
+export const DEFAULT_ORIGIN: SourceOrigin = { room: 'brain', kind: 'manual' }
 
 /** A source as stored in sources.json: the raw/ path is relative so the folder can move. */
 interface StoredSource {
@@ -14,6 +17,7 @@ interface StoredSource {
   size?: number
   pages?: string[]
   error?: string
+  origin?: SourceOrigin
 }
 
 interface ManifestFile {
@@ -72,7 +76,8 @@ export class SourceManifest {
       file: relative(this.rawDir, item.path).split(sep).join('/'),
       addedAt: item.addedAt,
       status: item.status,
-      size: item.size
+      size: item.size,
+      origin: { ...(item.origin ?? DEFAULT_ORIGIN) }
     }
     this.sources.set(stored.id, stored)
     await this.save()
@@ -112,7 +117,8 @@ export class SourceManifest {
       kind: stored.kind,
       path: this.absolute(stored),
       addedAt: stored.addedAt,
-      status: stored.status
+      status: stored.status,
+      origin: stored.origin ? { ...stored.origin } : { ...DEFAULT_ORIGIN }
     }
     if (stored.size !== undefined) item.size = stored.size
     if (stored.pages) item.pages = [...stored.pages]

@@ -1,6 +1,8 @@
 // YAML front matter for wiki pages. Only the subset the wiki uses is understood (scalars and
 // lists of scalars); any other keys a person adds by hand are kept verbatim when a page is rewritten.
 
+import type { RoomKind } from '@shared/types'
+
 export interface PageFrontmatter {
   title: string
   tags: string[]
@@ -8,6 +10,8 @@ export interface PageFrontmatter {
   /** ISO 8601 timestamp */
   updated: string
   summary: string
+  /** Room the page was written for; optional, absent on pages written before rooms */
+  room?: RoomKind
 }
 
 export interface ParsedPage {
@@ -17,7 +21,8 @@ export interface ParsedPage {
   body: string
 }
 
-const KNOWN_KEYS = new Set(['title', 'tags', 'sources', 'updated', 'summary'])
+const KNOWN_KEYS = new Set(['title', 'tags', 'sources', 'updated', 'summary', 'room'])
+const ROOMS: RoomKind[] = ['brain', 'office', 'personal']
 const FENCE = /^---\s*$/
 
 export function parsePage(text: string): ParsedPage {
@@ -53,7 +58,8 @@ export function parsePage(text: string): ParsedPage {
       tags: asList(values.get('tags')),
       sources: asList(values.get('sources')),
       updated: asString(values.get('updated')),
-      summary: asString(values.get('summary'))
+      summary: asString(values.get('summary')),
+      room: asRoom(asString(values.get('room')))
     },
     extra,
     body
@@ -67,6 +73,7 @@ export function renderPage(frontmatter: PageFrontmatter, body: string, extra: st
     `sources: [${frontmatter.sources.map(quote).join(', ')}]`,
     `updated: ${quote(frontmatter.updated)}`,
     `summary: ${quote(frontmatter.summary)}`,
+    ...(frontmatter.room ? [`room: ${quote(frontmatter.room)}`] : []),
     ...extra
   ]
   return `---\n${yaml.join('\n')}\n---\n\n${body.trim()}\n`
@@ -134,6 +141,10 @@ function parseScalar(raw: string): string {
 function asString(value: string | string[] | undefined): string | undefined {
   if (value === undefined) return undefined
   return Array.isArray(value) ? value.join(', ') : value
+}
+
+function asRoom(value: string | undefined): RoomKind | undefined {
+  return ROOMS.find((room) => room === value)
 }
 
 function asList(value: string | string[] | undefined): string[] | undefined {

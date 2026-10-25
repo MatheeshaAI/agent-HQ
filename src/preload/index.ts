@@ -24,9 +24,9 @@ const api: AgentHqApi = {
     }
   },
 
-  addUrl: (url) => invoke(IPC.addUrl, url),
-  addFiles: (paths) => invoke(IPC.addFiles, paths),
-  addNote: (text) => invoke(IPC.addNote, text),
+  addUrl: (url, origin) => invoke(IPC.addUrl, url, origin),
+  addFiles: (paths, origin) => invoke(IPC.addFiles, paths, origin),
+  addNote: (text, origin) => invoke(IPC.addNote, text, origin),
   pathForFile: (file) => webUtils.getPathForFile(file),
   retrySource: (id) => invoke(IPC.retrySource, id),
 
@@ -35,6 +35,10 @@ const api: AgentHqApi = {
   chatHistory: (agentId) => invoke(IPC.chatHistory, agentId),
   broadcastSend: (text) => invoke(IPC.broadcastSend, text),
   runJanitor: () => invoke(IPC.runJanitor),
+  runAgent: (agentId, instruction) => invoke(IPC.agentRun, agentId, instruction),
+  getAgentMemory: (agentId) => invoke(IPC.getAgentMemory, agentId),
+  setAgentMemory: (agentId, memory) => invoke(IPC.setAgentMemory, agentId, memory),
+  agentRuns: () => invoke(IPC.agentRuns),
 
   listPages: () => invoke(IPC.listPages),
   readPage: (slug) => invoke(IPC.readPage, slug),

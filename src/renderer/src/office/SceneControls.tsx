@@ -3,27 +3,39 @@ import { useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react'
 import { CameraControls } from '@react-three/drei'
 import { Maximize, Pause, Play, RotateCcw, RotateCw, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
 import * as THREE from 'three'
-import { CAMERA, ROOM } from './layout'
-import { registerCamera, sceneCamera } from '../state/camera'
+import { CAMERA, ROOM, ROOMS, WORLD_WIDTH } from './layout'
+import { registerCamera, sceneCamera, type FocusTarget } from '../state/camera'
 import { motion, usePaused } from '../state/motion'
+import { roomFocus, useRoomFocus, ROOM_LABEL, ROOM_KINDS } from '../state/rooms'
 import { trips } from '../state/trips'
 import styles from './SceneControls.module.css'
 
 const rad = THREE.MathUtils.degToRad
 
-/** Where the camera sits at the original view. */
-function homePose(): { position: THREE.Vector3; target: THREE.Vector3 } {
+/** Where the camera sits at the original view, shifted along x by `offset` to frame another room. */
+function homePose(offset = 0): { position: THREE.Vector3; target: THREE.Vector3 } {
   const yaw = rad(CAMERA.yaw)
   const elev = rad(CAMERA.elevation)
   const [tx, ty, tz] = CAMERA.target
+  const x = tx + offset
   return {
     position: new THREE.Vector3(
-      tx + CAMERA.distance * Math.cos(elev) * Math.sin(yaw),
+      x + CAMERA.distance * Math.cos(elev) * Math.sin(yaw),
       ty + CAMERA.distance * Math.sin(elev),
       tz + CAMERA.distance * Math.cos(elev) * Math.cos(yaw)
     ),
-    target: new THREE.Vector3(tx, ty, tz)
+    target: new THREE.Vector3(x, ty, tz)
   }
+}
+
+/**
+ * Camera distance at which the three rooms fill the view width. The rooms' footprint, seen from the view's yaw,
+ * is about WORLD_WIDTH * cos(yaw) + depth * sin(yaw) across the screen; the camera uses a narrow field of view.
+ */
+function distanceToFitAllRooms(camera: THREE.PerspectiveCamera): number {
+  const yaw = rad(CAMERA.yaw)
+  const across = (WORLD_WIDTH * Math.cos(yaw) + ROOM.depth * Math.sin(yaw)) * 1.1
+  return across / 2 / (Math.tan(rad(camera.fov) / 2) * camera.aspect)
 }
 
 /** Limits that keep the office in view: how close and far, how far round and up, and where the focus may go. */
@@ -58,7 +70,8 @@ export function SceneCameraControls(): JSX.Element {
     controls.minPolarAngle = rad(90 - LIMITS.maxElevation)
     controls.maxPolarAngle = rad(90 - LIMITS.minElevation)
     controls.boundaryEnclosesCamera = false
-    controls.setBoundary(new THREE.Box3(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(ROOM.width + 1, 3, ROOM.depth + 1)))
+    // The boundary covers all three rooms side by side.
+    controls.setBoundary(new THREE.Box3(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(WORLD_WIDTH + 1, 3, ROOM.depth + 1)))
     controls.dollyToCursor = true
     controls.mouseButtons.left = ACTION.TRUCK
     controls.mouseButtons.right = ACTION.ROTATE
@@ -70,9 +83,29 @@ export function SceneCameraControls(): JSX.Element {
     void controls.setLookAt(home.position.x, home.position.y, home.position.z, home.target.x, home.target.y, home.target.z, false)
 
     const dollyBy = (factor: number): void => {
-      void controls.dollyTo(THREE.MathUtils.clamp(controls.distance * factor, LIMITS.minDistance, LIMITS.maxDistance), animate())
+      void controls.dollyTo(THREE.MathUtils.clamp(controls.distance * factor, LIMITS.minDistance, controls.maxDistance), animate())
     }
+    const camera = (): THREE.PerspectiveCamera => controls.camera as THREE.PerspectiveCamera
     registerCamera({
+      focusRoom: (room: FocusTarget) => {
+        const all = room === 'all'
+        // Widen the zoom-out limit so the all-rooms view can reach its fitted distance.
+        const fitAll = distanceToFitAllRooms(camera())
+        controls.maxDistance = Math.max(LIMITS.maxDistance, fitAll * 1.05)
+        const offset = all ? 0 : (ROOMS.find((r) => r.id === room)?.offset ?? 0)
+        const pose = homePose(offset)
+        const target = all ? new THREE.Vector3(WORLD_WIDTH / 2, home.target.y, home.target.z) : pose.target
+        const distance = all ? fitAll : CAMERA.distance
+        const yaw = rad(CAMERA.yaw)
+        const elev = rad(CAMERA.elevation)
+        const from = new THREE.Vector3(
+          target.x + distance * Math.cos(elev) * Math.sin(yaw),
+          target.y + distance * Math.sin(elev),
+          target.z + distance * Math.cos(elev) * Math.cos(yaw)
+        )
+        void controls.setLookAt(from.x, from.y, from.z, target.x, target.y, target.z, animate())
+        void controls.setFocalOffset(0, 0, 0, animate())
+      },
       zoomIn: () => dollyBy(ZOOM_STEP),
       zoomOut: () => dollyBy(1 / ZOOM_STEP),
       rotate: (direction) => void controls.rotate(direction * ROTATE_STEP, 0, animate()),
@@ -161,6 +194,47 @@ export function SceneControlBar(): JSX.Element {
       <ControlButton label={paused ? 'Resume motion' : 'Pause motion'} onClick={() => motion.setPaused(!paused)} pressed={paused}>
         {paused ? <Play size={16} /> : <Pause size={16} />}
       </ControlButton>
+    </div>
+  )
+}
+
+const ROOM_BUTTONS: { id: FocusTarget; label: string }[] = [
+  { id: 'all', label: 'All' },
+  ...ROOM_KINDS.map((id) => ({ id, label: ROOM_LABEL[id] }))
+]
+
+/**
+ * Fly-to buttons for the three rooms, top right. They share the room focus with the Inbox and Knowledge filters,
+ * so picking a room there also flies the camera here (the first render after mounting keeps the current view).
+ */
+export function RoomBar(): JSX.Element {
+  const focus = useRoomFocus()
+  const mounted = useRef(false)
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    sceneCamera.focusRoom(focus)
+  }, [focus])
+  const choose = (id: FocusTarget): void => {
+    // Choosing the room already in focus does not change the store, so fly here directly.
+    if (focus === id) sceneCamera.focusRoom(id)
+    else roomFocus.set(id)
+  }
+  return (
+    <div className={styles.rooms} role="toolbar" aria-label="Fly the camera to a room">
+      {ROOM_BUTTONS.map((b) => (
+        <button
+          key={b.id}
+          type="button"
+          className={styles.roomButton}
+          aria-pressed={focus === b.id}
+          onClick={() => choose(b.id)}
+        >
+          {b.label}
+        </button>
+      ))}
     </div>
   )
 }

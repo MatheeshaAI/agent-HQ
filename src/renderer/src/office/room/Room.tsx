@@ -1,6 +1,7 @@
 // Floor slab, polished stone floor, the two back walls, rugs and the low front planter.
 import { MeshReflectorMaterial } from '@react-three/drei'
 import { useEffect, useMemo } from 'react'
+import * as THREE from 'three'
 import { Box, tiledBoxGeometry } from '../primitives'
 import { useMat } from '../materials'
 import { CAP_HEIGHT, LEFT_WALL_END, ROOM, MEETING_ROOM, RUGS, type Vec2 } from '../layout'
@@ -132,14 +133,14 @@ function FrontPlanter(): JSX.Element {
 }
 
 /** A striped charcoal rug with a slightly lighter bound edge. Every rug shares one material, so they batch. */
-export function Rug({ at, size }: { at: Vec2; size: Vec2 }): JSX.Element {
+export function Rug({ at, size, material }: { at: Vec2; size: Vec2; material?: THREE.Material }): JSX.Element {
   const mat = useMat()
   const geometry = useMemo(() => tiledBoxGeometry([size[0], 0.012, size[1]], RUG_PERIOD), [size])
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <group position={[at[0], 0, at[1]]}>
       <Box size={[size[0] + 0.08, 0.01, size[1] + 0.08]} at={[0, 0.005, 0]} material={mat.rugEdge} />
-      <mesh geometry={geometry} material={mat.rug} position={[0, 0.007, 0]} receiveShadow />
+      <mesh geometry={geometry} material={material ?? mat.rug} position={[0, 0.007, 0]} receiveShadow />
     </group>
   )
 }

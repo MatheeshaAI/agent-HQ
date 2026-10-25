@@ -1,7 +1,10 @@
 import {
   Activity,
+  Bookmark,
+  Bot,
   BookOpen,
   Brush,
+  Crown,
   CodeXml,
   Cog,
   File,
@@ -10,8 +13,10 @@ import {
   Globe,
   Image,
   Library,
+  ListChecks,
   Mail,
   MessageCircleQuestion,
+  NotebookPen,
   PenLine,
   ScanLine,
   Search,
@@ -31,7 +36,12 @@ export const AGENT_ICONS: Record<AgentId, LucideIcon> = {
   rex: CodeXml,
   nova: FlaskConical,
   axel: Search,
-  muse: Library
+  muse: Library,
+  chief: Crown,
+  scribe: StickyNote,
+  triager: ListChecks,
+  journal: NotebookPen,
+  curator: Bookmark
 }
 
 /** Tile tint per agent: Muse writes in indigo, Pip's mail room is amber, the pipeline crew is teal. */
@@ -41,7 +51,12 @@ export const AGENT_TONES: Record<AgentId, TileTone> = {
   rex: 'teal',
   nova: 'teal',
   axel: 'teal',
-  muse: 'indigo'
+  muse: 'indigo',
+  chief: 'amber',
+  scribe: 'teal',
+  triager: 'teal',
+  journal: 'amber',
+  curator: 'amber'
 }
 
 export const ACTIVITY_ICONS: Record<ActivityKind, LucideIcon> = {
@@ -79,4 +94,13 @@ export const SOURCE_ICONS: Record<SourceKind, LucideIcon> = {
   note: StickyNote,
   image: Image,
   other: File
+}
+
+/** Icon and tint for any agent, including the Chief and room agents that have no fixed look. */
+export function agentIcon(id: AgentId): LucideIcon {
+  return AGENT_ICONS[id] ?? Bot
+}
+
+export function agentTone(id: AgentId): TileTone {
+  return AGENT_TONES[id] ?? 'indigo'
 }

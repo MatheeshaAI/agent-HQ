@@ -6,12 +6,15 @@ import { usePages } from '../../state/pages'
 import { navigation } from '../../state/navigation'
 import { formatBytes, formatRelative, useNow } from '../../state/clock'
 import { inboxCount, normaliseUrl, type Tone } from '../../state/derived'
+import { addedBy, roomOfSource, useRoomFocus } from '../../state/rooms'
 import { SOURCE_ICONS } from '../common/icons'
 import { IconTile } from '../common/IconTile'
+import { RoomChip } from '../common/RoomChip'
 import { StatusChip } from '../common/StatusDot'
 import { EmptyState } from '../common/EmptyState'
 import { Button } from '../common/Button'
 import { ViewFrame } from './ViewFrame'
+import { RoomFilter } from './RoomFilter'
 import styles from './views.module.css'
 
 const SOURCE_STATUS: Record<SourceStatus, { label: string; tone: Tone }> = {
@@ -30,6 +33,8 @@ function errorText(error: unknown, fallback: string): string {
 export function InboxView(): JSX.Element {
   const { sources } = useSnapshot()
   const pending = inboxCount(sources)
+  const room = useRoomFocus()
+  const visible = room === 'all' ? sources : sources.filter((s) => roomOfSource(s) === room)
 
   return (
     <ViewFrame
@@ -50,11 +55,20 @@ export function InboxView(): JSX.Element {
               the wiki.
             </EmptyState>
           ) : (
-            <ul className={styles.sourceList}>
-              {sources.map((source) => (
-                <SourceRow key={source.id} source={source} />
-              ))}
-            </ul>
+            <>
+              <div className={styles.filterRow}>
+                <RoomFilter />
+              </div>
+              {visible.length === 0 ? (
+                <div className={styles.listEmpty}>Nothing in this room yet.</div>
+              ) : (
+                <ul className={styles.sourceList}>
+                  {visible.map((source) => (
+                    <SourceRow key={source.id} source={source} />
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -204,6 +218,7 @@ function AddNote(): JSX.Element {
 function SourceRow({ source }: { source: SourceItem }): JSX.Element {
   const now = useNow()
   const { bySlug } = usePages()
+  const { settings } = useSnapshot()
   const [retrying, setRetrying] = useState(false)
   const status = SOURCE_STATUS[source.status]
   const pages = source.pages ?? []
@@ -225,7 +240,9 @@ function SourceRow({ source }: { source: SourceItem }): JSX.Element {
           {source.name}
         </div>
         <div className={styles.sourceMeta}>
+          <RoomChip room={roomOfSource(source)} />
           <span className={styles.kind}>{source.kind}</span>
+          <span>added by {addedBy(source, settings.agentDefs)}</span>
           {source.size !== undefined && <span>{formatBytes(source.size)}</span>}
           <span>added {formatRelative(source.addedAt, now)}</span>
           {pages.length > 0 && (

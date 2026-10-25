@@ -18,6 +18,12 @@ export interface OfficeMaterials {
   floor: { map: THREE.Texture; roughnessMap: THREE.Texture }
   /** The floor's stone tiles as a plain material (one texture repeat per TILE_PERIOD), for raised floors. */
   stoneFloor: THREE.MeshStandardMaterial
+  /** Lighter, non-metal floors for the Office (cool) and Personal (warm) rooms, so they take the light. */
+  officeFloor: THREE.MeshStandardMaterial
+  personalFloor: THREE.MeshStandardMaterial
+  /** Rugs for the new rooms, in the brain room's weave but lighter. */
+  officeRug: THREE.MeshStandardMaterial
+  personalRug: THREE.MeshStandardMaterial
   walnut: THREE.MeshStandardMaterial
   darkWood: THREE.MeshStandardMaterial
   /** Dark walnut with a warm glow, for the back of the lit display shelving. */
@@ -111,6 +117,22 @@ export function useOfficeMaterials(): OfficeMaterials {
         color: '#c4c8cc',
         metalness: 0.2
       }),
+      officeFloor: std({
+        map: tileOnce(floor.map),
+        roughnessMap: tileOnce(floor.roughnessMap),
+        color: '#d2dbe8',
+        metalness: 0,
+        roughness: 0.9
+      }),
+      personalFloor: std({
+        map: tileOnce(floor.map),
+        roughnessMap: tileOnce(floor.roughnessMap),
+        color: '#ead3b6',
+        metalness: 0,
+        roughness: 0.9
+      }),
+      officeRug: std({ map: rug, color: '#9fb0cc', roughness: 1 }),
+      personalRug: std({ map: rug, color: '#d1a07a', roughness: 1 }),
       walnut: std({ map: grain, color: '#8c7d72', roughness: 0.42 }),
       darkWood: std({ ...panel, color: '#3a2c22', roughness: 0.5, bumpScale: 0.15 }),
       shelfGlow: std({ color: '#3a2414', emissive: '#ff9a4a', emissiveIntensity: 0.35, roughness: 0.6 }),

@@ -1,7 +1,33 @@
 // Contract between the main process (wiki engine), the preload bridge and the renderer.
 // Everything the UI shows comes from AppSnapshot; the main process pushes a fresh snapshot on every change.
 
-export type AgentId = 'pip' | 'sage' | 'rex' | 'nova' | 'axel' | 'muse'
+/** Ids of built-in agents are 'pip', 'sage', ...; user-defined agents can use any string id. */
+export type AgentId = string
+
+/** The part of the app an agent or source belongs to. */
+export type RoomKind = 'brain' | 'office' | 'personal'
+
+/** Where a source came from: a person, or an agent working in a room. */
+export interface SourceOrigin {
+  room: RoomKind
+  agentId?: string
+  kind: 'manual' | 'agent'
+}
+
+/** A configurable agent. Built-in defaults come from DEFAULT_AGENT_DEFS; the list is stored in settings.json. */
+export interface AgentDef {
+  id: AgentId
+  name: string
+  role: string
+  room: RoomKind
+  /** LLM job description used as the agent's system prompt when it chats */
+  prompt?: string
+  /** Idle text shown on the agent card when it has no work */
+  idle?: string
+  schedule?: { mode: 'off' | 'interval' | 'daily'; everyMinutes?: number; at?: string }
+  enabled: boolean
+  kind: 'pipeline' | 'room' | 'chief'
+}
 
 /** idle = waiting, working = running a step, thinking = waiting on the LLM, error = last step failed */
 export type AgentState = 'idle' | 'working' | 'thinking' | 'error'
@@ -62,12 +88,16 @@ export interface SourceItem {
   /** Wiki page slugs created or updated from this source */
   pages?: string[]
   error?: string
+  /** Who or what added the source. Defaults to { room: 'brain', kind: 'manual' } for older entries. */
+  origin?: SourceOrigin
 }
 
 export interface WikiPageMeta {
   slug: string
   title: string
   path: string
+  /** Room the page was written for, from the front matter */
+  room?: RoomKind
   /** Slugs this page links to via [[wikilinks]] */
   links: string[]
   /** Source ids this page was built from */
@@ -127,6 +157,7 @@ export interface SettingsView {
   userName: string
   rooms: Room[]
   currentRoomId: string
+  agentDefs: AgentDef[]
 }
 
 export interface Room { id: string; name: string; knowledgeDir: string }
@@ -148,6 +179,8 @@ export interface SettingsUpdate {
   args?: string
   model?: string
   userName?: string
+  /** Replaces the whole agent list when given */
+  agentDefs?: AgentDef[]
 }
 
 export interface AppSnapshot {
@@ -164,6 +197,24 @@ export interface AppSnapshot {
   janitor: JanitorReport
   /** True when the engine is running and the knowledge folder is readable */
   online: boolean
+}
+
+/** Outcome of running a room agent once. */
+export interface AgentRunResult {
+  ok: boolean
+  /** e.g. "Scribe – 2026-10-25" */
+  title?: string
+  error?: string
+}
+
+/** Last run of one room agent. */
+export interface AgentRunInfo {
+  agentId: AgentId
+  running: boolean
+  lastRunAt?: number
+  ok?: boolean
+  title?: string
+  error?: string
 }
 
 export interface AskResult {
@@ -218,9 +269,9 @@ export interface AgentHqApi {
   /** Subscribe to snapshot pushes. Returns an unsubscribe function. */
   onSnapshot(cb: (snapshot: AppSnapshot) => void): () => void
 
-  addUrl(url: string): Promise<SourceItem>
-  addFiles(paths: string[]): Promise<SourceItem[]>
-  addNote(text: string): Promise<SourceItem>
+  addUrl(url: string, origin?: SourceOrigin): Promise<SourceItem>
+  addFiles(paths: string[], origin?: SourceOrigin): Promise<SourceItem[]>
+  addNote(text: string, origin?: SourceOrigin): Promise<SourceItem>
   /** Returns the absolute path of a File dropped onto the window (Electron webUtils). */
   pathForFile(file: File): string
   retrySource(id: string): Promise<void>
@@ -233,6 +284,14 @@ export interface AgentHqApi {
   /** One message to all agents at once, with a delivery result per agent. */
   broadcastSend(text: string): Promise<BroadcastResult>
   runJanitor(): Promise<JanitorReport>
+  /** Runs one room agent now (Scribe, Triager, ...) and files its note in the Inbox. */
+  runAgent(agentId: AgentId, instruction?: string): Promise<AgentRunResult>
+  /** The agent's memory (memory/<id>.md in the knowledge folder); '' when empty. */
+  getAgentMemory(agentId: AgentId): Promise<string>
+  /** Replaces the agent's memory; '' clears it. Resolves with the stored text. */
+  setAgentMemory(agentId: AgentId, memory: string): Promise<string>
+  /** Last run and running state of each room agent. */
+  agentRuns(): Promise<AgentRunInfo[]>
 
   listPages(): Promise<WikiPageMeta[]>
   readPage(slug: string): Promise<WikiPageContent | null>
@@ -269,6 +328,10 @@ export const IPC = {
   chatHistory: 'chat:history',
   broadcastSend: 'broadcast:send',
   runJanitor: 'hq:runJanitor',
+  agentRun: 'hq:agent-run',
+  agentRuns: 'hq:agent-runs',
+  getAgentMemory: 'hq:agent-memory:get',
+  setAgentMemory: 'hq:agent-memory:set',
   listPages: 'hq:listPages',
   readPage: 'hq:readPage',
   getSettings: 'hq:getSettings',
@@ -283,12 +346,65 @@ export const IPC = {
   winClose: 'hq:win:close'
 } as const
 
-/** The six agents, in the order the UI lists them. */
-export const AGENTS: { id: AgentId; name: string; role: string; idle: string }[] = [
-  { id: 'pip', name: 'Pip', role: 'Mail Clerk', idle: 'Waiting for mail' },
-  { id: 'sage', name: 'Sage', role: 'Reader', idle: 'Waiting for sources' },
-  { id: 'rex', name: 'Rex', role: 'Extractor', idle: 'Waiting for text' },
-  { id: 'nova', name: 'Nova', role: 'Linker', idle: 'Watching the graph' },
-  { id: 'axel', name: 'Axel', role: 'Janitor', idle: 'Patrolling the wiki' },
-  { id: 'muse', name: 'Muse', role: 'Librarian', idle: 'Tidying the shelves' }
+const BRAIN_PIPELINE: AgentDef[] = [
+  {
+    id: 'pip', name: 'Pip', role: 'Mail Clerk', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Waiting for mail',
+    prompt: 'You receive new sources (files, links, notes) and sort them into the inbox, then pass them to Sage.'
+  },
+  {
+    id: 'sage', name: 'Sage', role: 'Reader', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Waiting for sources',
+    prompt: 'You read each source and write a summary with its key points.'
+  },
+  {
+    id: 'rex', name: 'Rex', role: 'Extractor', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Waiting for text',
+    prompt: 'You extract claims, concepts and tags from what Sage has read.'
+  },
+  {
+    id: 'nova', name: 'Nova', role: 'Linker', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Watching the graph',
+    prompt: 'You decide which wiki pages to write or update and link related pages with [[wikilinks]].'
+  },
+  {
+    id: 'axel', name: 'Axel', role: 'Janitor', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Patrolling the wiki',
+    prompt: 'You check the wiki for contradictions and orphan pages.'
+  },
+  {
+    id: 'muse', name: 'Muse', role: 'Librarian', room: 'brain', kind: 'pipeline', enabled: true, idle: 'Tidying the shelves',
+    prompt: 'You are the librarian: you answer questions from the wiki pages and cite them.'
+  }
 ]
+
+const OFF_DAILY = { mode: 'off' as const, at: '09:00' }
+
+/** Agents shipped with the app. Schedules are off by default so nothing runs unexpectedly. */
+export const DEFAULT_AGENT_DEFS: AgentDef[] = [
+  ...BRAIN_PIPELINE,
+  {
+    id: 'chief', name: 'Chief', role: 'Chief of Staff', room: 'brain', kind: 'chief', enabled: true, idle: 'Keeping the team on track',
+    prompt: 'You coordinate the other agents in the brain: you explain what the team is doing and point the person to the right agent.'
+  },
+  {
+    id: 'scribe', name: 'Scribe', role: 'Meeting Scribe', room: 'office', kind: 'room', enabled: true, idle: 'Waiting for meeting notes',
+    prompt: 'You turn meeting notes and transcripts into a short record: attendees, decisions, action items with owners, and open questions. Write only what the notes say.',
+    schedule: { ...OFF_DAILY }
+  },
+  {
+    id: 'triager', name: 'Triager', role: 'Task Triager', room: 'office', kind: 'room', enabled: true, idle: 'Waiting for tasks',
+    prompt: 'You review the open tasks and messages for the office and suggest a priority order, what can wait, and what needs a decision from the person. Keep it brief.',
+    schedule: { ...OFF_DAILY }
+  },
+  {
+    id: 'journal', name: 'Journal Keeper', role: 'Journal Keeper', room: 'personal', kind: 'room', enabled: true, idle: 'Waiting for entries',
+    prompt: 'You keep the personal journal: you summarise the day from the entries you are given, note mood and recurring themes, and list follow-ups the person wrote down. Do not add anything they did not write.',
+    schedule: { ...OFF_DAILY }
+  },
+  {
+    id: 'curator', name: 'Reading Curator', role: 'Reading Curator', room: 'personal', kind: 'room', enabled: true, idle: 'Waiting for reading',
+    prompt: 'You curate the personal reading list: you group saved articles by theme, suggest what to read next, and flag duplicates. Only recommend items that are in the list you are given.',
+    schedule: { ...OFF_DAILY }
+  }
+]
+
+/** The six brain pipeline agents, in the order the UI lists them. Derived from the defaults. */
+export const AGENTS: { id: AgentId; name: string; role: string; idle: string }[] = DEFAULT_AGENT_DEFS
+  .filter((def) => def.kind === 'pipeline')
+  .map((def) => ({ id: def.id, name: def.name, role: def.role, idle: def.idle ?? '' }))

@@ -3,7 +3,7 @@ import { createStore, useStore } from './store'
 import { voice } from './voice'
 
 /** A message as the drawer shows it: engine messages plus the ones still on their way or that failed. */
-export type DisplayMessage = ChatMessage & { pending?: boolean; failed?: boolean }
+export type DisplayMessage = ChatMessage & { pending?: boolean; failed?: boolean; error?: string }
 
 type Histories = Partial<Record<AgentId, DisplayMessage[]>>
 
@@ -29,6 +29,12 @@ function localMessage(text: string, from: ChatMessage['from'], extra: Partial<Di
 }
 
 export const chat = {
+  /** Drops every loaded history (the knowledge folder changed); open conversations reload from the engine. */
+  reset(): void {
+    loaded.clear()
+    chatStore.set({ histories: {} })
+  },
+
   /** Loads the agent's history from the engine once. */
   load(agentId: AgentId): Promise<void> {
     const cached = loaded.get(agentId)
@@ -51,21 +57,32 @@ export const chat = {
       setHistory(agentId, (m) => [...m.filter((x) => x.id !== draft.id), sent, reply])
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      setHistory(agentId, (m) => [...m.filter((x) => x.id !== draft.id), { ...draft, pending: false, failed: true, text: `${text}\n(Not sent: ${reason})` }])
+      setHistory(agentId, (m) => [...m.filter((x) => x.id !== draft.id), { ...draft, pending: false, failed: true, error: reason }])
     } finally {
       voice.set(agentId, false)
     }
   },
 
-  /** One message to all agents; resolves with each agent's delivery result. */
-  async broadcast(text: string): Promise<BroadcastResult> {
-    for (const { id } of AGENTS) voice.set(id, true)
+  /** Sends a failed message again. */
+  retry(agentId: AgentId, message: DisplayMessage): Promise<void> {
+    setHistory(agentId, (m) => m.filter((x) => x.id !== message.id))
+    return chat.send(agentId, message.text)
+  },
+
+  /** Removes a failed message from the conversation. */
+  dismiss(agentId: AgentId, id: string): void {
+    setHistory(agentId, (m) => m.filter((x) => x.id !== id))
+  },
+
+  /** One message to the given agents (the engine decides the final list); resolves with each delivery result. */
+  async broadcast(text: string, recipients: AgentId[] = AGENTS.map((a) => a.id)): Promise<BroadcastResult> {
+    for (const id of recipients) voice.set(id, true)
     try {
       const result = await window.api.broadcastSend(text)
-      await Promise.all(result.deliveries.map((d) => (d.status === 'delivered' ? sync(d.agent) : undefined)))
+      await Promise.all(result.deliveries.map((d) => (d.status === 'delivered' ? sync(d.agent).catch(() => undefined) : undefined)))
       return result
     } finally {
-      for (const { id } of AGENTS) voice.set(id, false)
+      for (const id of recipients) voice.set(id, false)
     }
   }
 }

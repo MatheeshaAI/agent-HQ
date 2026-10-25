@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Html } from '@react-three/drei'
 import { BookOpen, Code2, Search } from 'lucide-react'
 import type { AgentId, AgentState, AgentStatus } from '@shared/types'
+import { useCardTier } from './cardTier'
 import './agentCard.css'
 
 const ICON_SIZE = 26
@@ -89,13 +90,16 @@ interface AgentCardProps {
 }
 
 export default function AgentCard({ status, speaking = false, onClick }: AgentCardProps): JSX.Element {
-  const Icon = ICONS[status.id]
+  const Icon = ICONS[status.id] ?? BotIcon
   const detail = `${status.role} · ${status.activity}`
+  const tier = useCardTier()
+  // Stacking follows distance: drei maps the range linearly over the camera's near..far, so a wide range keeps
+  // neighbouring distances apart and a nearer room's card always sits over a farther one.
   return (
-    <Html position={[0, CARD_ANCHOR_Y, 0]} zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+    <Html position={[0, CARD_ANCHOR_Y, 0]} zIndexRange={[120, 20]} style={{ pointerEvents: 'none' }}>
       <button
         type="button"
-        className={`hq-agent-card hq-agent-card--${status.state}`}
+        className={`hq-agent-card hq-agent-card--${status.state}${tier === 'full' ? '' : ` hq-agent-card--${tier}`}`}
         onClick={() => onClick?.(status.id)}
         aria-label={`${status.name}: ${STATE_LABEL[status.state]}, ${detail}`}
         title={detail}

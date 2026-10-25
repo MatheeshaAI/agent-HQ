@@ -178,6 +178,49 @@
   }
 }
 
+/*
+ * Zoomed out (the All view): a compact chip, an icon and the short name, with no state or role text.
+ * Far out the card is invisible but still takes the pointer, so hovering it reveals the chip.
+ */
+.hq-agent-card--compact {
+  min-width: 0;
+  max-width: none;
+  height: 28px;
+  gap: 5px;
+  padding: 0 8px 0 4px;
+  border-radius: 7px;
+}
+
+.hq-agent-card--compact .hq-agent-card__icon {
+  width: 22px;
+  height: 22px;
+}
+
+.hq-agent-card--compact .hq-agent-card__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.hq-agent-card--compact .hq-agent-card__name {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.hq-agent-card--compact .hq-agent-card__state,
+.hq-agent-card--compact .hq-agent-card__role {
+  display: none;
+}
+
+.hq-agent-card--far {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.hq-agent-card--far:hover,
+.hq-agent-card--far:focus-visible {
+  opacity: 1;
+}
+
 /* Phones: a compact name, status and dot; the role and activity are in the drawer. */
 @media (max-width: 760px) {
   .hq-agent-card {

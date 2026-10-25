@@ -61,7 +61,7 @@ export const DESKS: DeskSpot[] = [
   { at: [3.0, 2.0], rotation: 0, agent: 'sage', monitors: 2, plant: 1 },
   { at: [6.55, 5.9], rotation: 0, agent: 'rex', monitors: 3, length: 2.4, seat: -0.45, plant: 1 },
   { at: [10.5, 4.85], rotation: 0, agent: 'nova', monitors: 2, seat: -0.4, plant: 1 },
-  { at: [10.5, 3.05], rotation: 0, staff: true, monitors: 2, seat: 0.4, plant: -1 },
+  { at: [10.5, 3.05], rotation: 0, agent: 'chief', monitors: 2, seat: 0.4, plant: -1 },
   { at: [10.85, 11.2], rotation: 0, agent: 'axel', monitors: 2, seat: -0.3, plant: 1 },
   { at: [10.85, 9.4], rotation: 0, staff: true, monitors: 1, seat: 0.35, plant: -1 },
   { at: [14.85, 8.35], rotation: 0, agent: 'muse', monitors: 1, plant: 1 }
@@ -110,14 +110,18 @@ const FLOOR_PLANTS: PlantSpot[] = [
   { at: [12.7, 14.3], kind: 'rubber', scale: 0.7 } // outside the meeting room's front corner
 ]
 
-/** A small plant on the far end of each desk that asks for one. */
-const DESK_PLANTS: PlantSpot[] = DESKS.flatMap((d) => {
-  if (!d.plant) return []
-  const half = (d.length ?? 1.8) / 2
-  return [
-    { at: [d.at[0] - 0.2, d.at[1] + d.plant * (half - 0.2)] as Vec2, y: DESK_TOP, kind: 'small' as const, scale: 0.42 }
-  ]
-})
+/** A small plant on the far end of each desk that asks for one (room-local coordinates). */
+function deskPlants(desks: DeskSpot[]): PlantSpot[] {
+  return desks.flatMap((d) => {
+    if (!d.plant) return []
+    const half = (d.length ?? 1.8) / 2
+    return [
+      { at: [d.at[0] - 0.2, d.at[1] + d.plant * (half - 0.2)] as Vec2, y: DESK_TOP, kind: 'small' as const, scale: 0.42 }
+    ]
+  })
+}
+
+const DESK_PLANTS: PlantSpot[] = deskPlants(DESKS)
 
 export const MEETING_ROOM = {
   // The room stands on a slab extension that juts 1 m past the main floor's front edge, like the reference.
@@ -201,3 +205,140 @@ export const RUGS: { at: Vec2; size: Vec2 }[] = [
   { at: [11.35, 10.2], size: [2.8, 3.8] },
   { at: [15.2, 8.35], size: [2.3, 2.6] }
 ]
+
+// ---------------------------------------------------------------------------------------------------------------
+// Three rooms side by side. The brain room (offset 0) keeps the exports above; the others are built from the same
+// pieces and stand along +x with a dividing wall and doorway between each pair. Room-local coordinates use the
+// brain room's conventions (origin at the back corner, right wall on z = 0).
+// ---------------------------------------------------------------------------------------------------------------
+
+export type RoomId = 'brain' | 'office' | 'personal'
+
+/** Corridor between neighbouring rooms; the dividing wall stands in its middle. */
+export const ROOM_GAP = 2
+/** Doorway in each dividing wall, along z (room-local). */
+export const DOOR = { z0: 5.2, z1: 7.2, top: 2.6 } as const
+const ROOM_STEP = ROOM.width + ROOM_GAP
+
+export interface RoomSpec {
+  id: RoomId
+  name: string
+  /** World x of the room's back corner. */
+  offset: number
+  /** Desks in room-local coordinates. */
+  desks: DeskSpot[]
+  /** Plants in room-local coordinates, desk plants included. */
+  plants: PlantSpot[]
+  /** Sign on the back wall, and its glow colour. */
+  sign?: { text: string; color: string; x: number; width: number }
+  /** Cool or warm tint for the room's light pools and LED cove. */
+  tint: string
+  /** Room-local tables, shelves and other fittings the room adds (the brain room's own fittings are the exports above). */
+  table?: { at: Vec2; length: number; width: number; rug: Vec2 }
+  whiteboard?: { x0: number; x1: number }
+  bookshelves: BookshelfSpot[]
+  /** Pools of light over the desks (room-local). */
+  pools: Vec2[]
+}
+
+const OFFICE_DESKS: DeskSpot[] = [
+  { at: [3.6, 4.2], rotation: 0, agent: 'scribe', monitors: 2, plant: 1 },
+  { at: [3.6, 8.6], rotation: 0, agent: 'triager', monitors: 2, plant: 1 }
+]
+
+const PERSONAL_DESKS: DeskSpot[] = [
+  { at: [3.6, 4.2], rotation: 0, agent: 'journal', monitors: 1, plant: 1 },
+  { at: [3.6, 8.6], rotation: 0, agent: 'curator', monitors: 2, plant: 1 }
+]
+
+const OFFICE_PLANTS: PlantSpot[] = [
+  { at: [1.2, 13.6], scale: 1.0 },
+  { at: [15.2, 13.6], scale: 0.9 },
+  { at: [14.9, 6.2], kind: 'rubber', scale: 0.9 },
+  { at: [0.8, 6.4], scale: 1.1 }
+]
+
+const PERSONAL_PLANTS: PlantSpot[] = [
+  { at: [1.0, 13.6], scale: 1.1 },
+  { at: [6.2, 13.4], kind: 'rubber', scale: 0.9 },
+  { at: [12.6, 1.1], scale: 0.95 },
+  { at: [10.2, 13.6], scale: 1.0 }
+]
+
+/** Brain room's own fittings keep their existing lists, so its plants and bookcases are unchanged. */
+export const ROOMS: RoomSpec[] = [
+  {
+    id: 'brain',
+    name: 'Brain',
+    offset: 0,
+    desks: DESKS,
+    plants: PLANTS,
+    tint: '#ffc890',
+    bookshelves: BOOKSHELVES,
+    pools: []
+  },
+  {
+    id: 'office',
+    name: 'Office',
+    offset: ROOM_STEP,
+    desks: OFFICE_DESKS,
+    plants: [...OFFICE_PLANTS, ...deskPlants(OFFICE_DESKS)],
+    sign: { text: 'Office work', color: '#8fb4e8', x: 6.6, width: 4.6 },
+    tint: '#b9d2f2',
+    // Well clear of the dividing wall (local x -1) and its doorway: the table sits in the open front-right floor.
+    table: { at: [10.8, 10.4], length: 4.2, width: 1.5, rug: [10.8, 10.4] },
+    whiteboard: { x0: 11.2, x1: 15.4 },
+    bookshelves: [],
+    pools: [
+      [4.4, 4.2],
+      [4.4, 8.6],
+      [9.6, 3.4],
+      [13.8, 3.6],
+      [10.8, 10.4],
+      [14.2, 9.6]
+    ]
+  },
+  {
+    id: 'personal',
+    name: 'Personal',
+    offset: 2 * ROOM_STEP,
+    desks: PERSONAL_DESKS,
+    plants: [...PERSONAL_PLANTS, ...deskPlants(PERSONAL_DESKS)],
+    sign: { text: 'Personal work', color: '#e8926a', x: 6.6, width: 5.2 },
+    tint: '#ffb27a',
+    bookshelves: [{ at: [14.6, 0.02], rotation: 0, width: 1.6, height: 2.2, bays: 2, lamp: true }],
+    pools: [
+      [4.4, 4.2],
+      [4.4, 8.6],
+      [9.4, 3.4],
+      [13.4, 3.8],
+      [9.6, 10.6],
+      [14.8, 9.2]
+    ]
+  }
+]
+
+/** Offsets a room-local point into the world. */
+export function inRoom(room: Pick<RoomSpec, 'offset'>, at: Vec2): Vec2 {
+  return [at[0] + room.offset, at[1]]
+}
+
+/** A room's desks in world coordinates. */
+export function worldDesks(room: RoomSpec): DeskSpot[] {
+  return room.desks.map((d) => ({ ...d, at: inRoom(room, d.at) }))
+}
+
+/** A room's plants in world coordinates. */
+export function worldPlants(room: RoomSpec): PlantSpot[] {
+  return room.plants.map((p) => ({ ...p, at: inRoom(room, p.at) }))
+}
+
+/** Every desk in every room, in world coordinates. The brain room's desks come first, so its indices are unchanged. */
+export const ALL_DESKS: DeskSpot[] = ROOMS.flatMap(worldDesks)
+
+/** Furthest x of the office: the boundary for panning and the all-rooms view. */
+export const WORLD_WIDTH = ROOMS[ROOMS.length - 1].offset + ROOM.width
+
+/** Height of the centre of a room sign on the back wall (below the black cap at CAP_HEIGHT). */
+export const ROOM_SIGN_Y = 2.92
+

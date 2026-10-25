@@ -15,7 +15,11 @@ A desktop app (Electron) for a second brain built on the **LLM Wiki** pattern. Y
   - **Muse** (Librarian) writes the pages into `wiki/`, refreshes `index.md` and appends to `log.md`.
 - **Janitor:** **Axel** checks the wiki after every ingest. It finds orphan pages (by code) and contradictions (with Claude). Results show in the bottom bar.
 - **Ask:** type a question in the bottom bar. Muse answers only from your wiki pages and cites them; click a citation to open the page.
-- **Office controls:** click an agent to open its drawer: status, a private conversation and a switcher. **Broadcast to all agents** sends one message to every agent after a confirmation. Replies are simulated until a backend answers for the agents. Zoom, rotate, Fit, Reset and Pause sit at the bottom left of the office; the mouse wheel zooms, dragging pans and right-drag rotates. Agent portraits are optional: see `src/renderer/src/assets/portraits/README.md`.
+- **Office controls:** click an agent to open its drawer: status, a private conversation and a switcher. **Broadcast to all agents** sends one message to every agent after a confirmation. Replies come from your configured AI provider. Zoom, rotate, Fit, Reset and Pause sit at the bottom left of the office; the mouse wheel zooms, dragging pans and right-drag rotates. Agent portraits are optional: see `src/renderer/src/assets/portraits/README.md`.
+- **Three rooms:** the office has a **Brain** room (the six agents above plus **Chief**), an **Office work** room (Meeting Scribe, Task Triager) and a **Personal work** room (Journal Keeper, Reading Curator). All three feed one shared wiki. The All / Brain / Office / Personal buttons at the top right of the office fly the camera between rooms.
+- **Room agents:** the Office and Personal agents write notes into the Inbox, tagged with their room and agent name; the brain agents then ingest them as usual. Each room agent has a prompt, an on/off switch and a schedule (off, every N minutes, or daily at a time) that you edit in **Settings > Agents**. Schedules are off by default. **Run now** is in the Agents view. Inbox, Knowledge and Graph have room filters.
+- **Chief:** chat with Chief to run a room agent ("ask the scribe to summarise today's meetings"), add a note to a room's Inbox ("note: ..." or "add to office inbox: ..."), or get a digest of the last 24 hours ("digest").
+- **Chat and memory:** the chat drawer opens from every view and lists every agent. Each agent keeps persistent memory in `memory/<agent>.md` and its chat history in `memory/chats/<agent>.jsonl` inside the knowledge folder. Memory is added to the agent's prompt and updated in the background after chat turns and room-agent runs. Read, edit or clear it in the drawer's Memory section.
 - **Views:** Office (the live 3D office), Agents, Knowledge (searchable page reader), Tasks, Graph (interactive map of `[[links]]`), Inbox and Settings.
 
 The office, the side panels and the counters all show the real state of your knowledge folder. Nothing is sample data.
@@ -67,9 +71,12 @@ Agent HQ Knowledge/
   wiki/           markdown pages with YAML front matter and [[wikilinks]]
   index.md        catalogue of pages (regenerated)
   log.md          append-only record of ingests
-  sources.json    inbox state
+  sources.json    inbox state (each item records its room and which agent added it)
   janitor.json    last janitor report
+  memory/         per-agent memory (<agent>.md) and chat history (chats/<agent>.jsonl); not ingested
 ```
+
+Wiki pages carry a `room` front-matter field (`brain`, `office` or `personal`). Room-agent run times are kept in `agent-runs.json` in the app's data folder.
 
 It's plain markdown, so you can open it in Obsidian or any editor. Edits you make outside the app are picked up.
 

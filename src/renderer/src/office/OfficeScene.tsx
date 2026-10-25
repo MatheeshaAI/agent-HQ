@@ -1,14 +1,15 @@
 // The cinematic 3D office at the centre of Agent HQ. Fills its parent; the scene floats on black.
-import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { PerformanceMonitor } from '@react-three/drei'
+import { CameraControls, PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import type { AgentId, AgentStatus, GraphData } from '@shared/types'
-import { BOOKSHELVES, CAMERA, DESKS, FACING, PLANTS } from './layout'
+import { ALL_DESKS, BOOKSHELVES, CAMERA, FACING, PLANTS, ROOMS, worldPlants } from './layout'
 import { seatOf } from './routes'
 import { MaterialsContext, useOfficeMaterials } from './materials'
 import Room from './room/Room'
 import LeftWall from './room/LeftWall'
+import RoomFittings from './room/RoomFittings'
 import RightWall from './room/RightWall'
 import Desk from './furniture/Desk'
 import Bookshelf from './furniture/Bookshelf'
@@ -17,6 +18,7 @@ import MeetingRoom from './furniture/MeetingRoom'
 import Lounge from './furniture/Lounge'
 import Extras from './furniture/Extras'
 import Agent, { Staff } from './agents/Agent'
+import { setCardTier, tierForDistance, type CardTier } from './agents/cardTier'
 import { Choreographer } from './agents/choreography'
 import { useHandoffs } from './agents/useHandoffs'
 import { motion } from '../state/motion'
@@ -26,7 +28,7 @@ import Lighting from './lights/Lighting'
 import Effects from './Effects'
 import StaticBatch from './StaticBatch'
 import { NO_REFLECTION_LAYER } from './NoReflection'
-import { SceneCameraControls, SceneControlBar, onSceneKeyDown } from './SceneControls'
+import { RoomBar, SceneCameraControls, SceneControlBar, onSceneKeyDown } from './SceneControls'
 
 export interface OfficeSceneProps {
   agents: AgentStatus[]
@@ -79,7 +81,13 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
         <Lounge />
         <Extras />
         <Plants plants={PLANTS} />
-        {DESKS.map((desk, i) => {
+        {ROOMS.slice(1).map((room) => (
+          <RoomFittings key={room.id} room={room} />
+        ))}
+        {ROOMS.slice(1).map((room) => (
+          <Plants key={`${room.id}-plants`} plants={worldPlants(room)} />
+        ))}
+        {ALL_DESKS.map((desk, i) => {
           const status = desk.agent ? byId.get(desk.agent) : undefined
           // Staff are always busy; an agent's screens follow its state.
           const busy = desk.staff === true || status?.state === 'working' || status?.state === 'thinking'
@@ -98,7 +106,7 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
           )
         })}
       </StaticBatch>
-      {DESKS.map((desk, i) => {
+      {ALL_DESKS.map((desk, i) => {
         const facing = desk.rotation + FACING
         if (desk.staff) return <Staff key={i} seat={seatOf(desk)} facing={facing} phase={i * 1.37} />
         const status = desk.agent ? byId.get(desk.agent) : undefined
@@ -119,6 +127,20 @@ function Office({ agents, graph, onOpenGraph, onAgentClick }: OfficeSceneProps):
   )
 }
 
+/** Writes the agent cards' size tier when the camera crosses a distance threshold (no re-render otherwise). */
+function CardTierWatch(): null {
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null
+  const last = useRef<CardTier | null>(null)
+  useFrame(() => {
+    if (!controls) return
+    const tier = tierForDistance(controls.distance)
+    if (tier === last.current) return
+    last.current = tier
+    setCardTier(tier)
+  })
+  return null
+}
+
 /** Device pixel ratio bounds; PerformanceMonitor moves between them to hold the frame rate. */
 const MAX_DPR = Math.min(2, window.devicePixelRatio || 1)
 
@@ -137,7 +159,7 @@ export default function OfficeScene({ active = true, ...props }: OfficeSceneProp
         shadows="soft"
         dpr={dpr}
         frameloop={active ? 'always' : 'never'}
-        camera={{ fov: CAMERA.fov, near: 1, far: 160 }}
+        camera={{ fov: CAMERA.fov, near: 1, far: 600 }}
         gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
         style={{ background: '#000' }}
       >
@@ -145,6 +167,7 @@ export default function OfficeScene({ active = true, ...props }: OfficeSceneProp
         <color attach="background" args={['#000']} />
         <CameraRig />
         <SceneCameraControls />
+        <CardTierWatch />
         <Lighting />
         <Suspense fallback={null}>
           <Office {...props} />
@@ -152,6 +175,7 @@ export default function OfficeScene({ active = true, ...props }: OfficeSceneProp
         <Effects />
       </Canvas>
       <SceneControlBar />
+      <RoomBar />
     </div>
   )
 }

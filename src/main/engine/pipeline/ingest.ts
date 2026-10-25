@@ -228,6 +228,8 @@ export class IngestQueue {
                 title,
                 tags: draft.tags.length > 0 ? draft.tags : (existing?.tags ?? extraction.tags),
                 sources: uniqueBy([...(existingMeta?.sources ?? []), source.id], (id) => id),
+                // A page keeps the room it was first written for; new pages take the source's room.
+                room: existingMeta?.room ?? source.origin?.room ?? 'brain',
                 summary: draft.summary,
                 body: `# ${title}\n\n${draft.markdown}`,
                 updatedAt: now()

@@ -4,10 +4,13 @@ import type { WikiPageMeta } from '@shared/types'
 import { usePage, usePages } from '../../state/pages'
 import { navigation, useNavigation } from '../../state/navigation'
 import { formatRelative, useNow } from '../../state/clock'
+import { roomOfPage, useRoomFocus } from '../../state/rooms'
 import { Markdown } from '../markdown/Markdown'
 import { EmptyState } from '../common/EmptyState'
 import { Button } from '../common/Button'
+import { RoomChip } from '../common/RoomChip'
 import { ViewFrame } from './ViewFrame'
+import { RoomFilter } from './RoomFilter'
 import styles from './views.module.css'
 
 function matches(page: WikiPageMeta, query: string): boolean {
@@ -24,11 +27,14 @@ export function KnowledgeView(): JSX.Element {
   const { pages } = usePages()
   const selected = useNavigation((s) => s.pageSlug)
   const [query, setQuery] = useState('')
+  const room = useRoomFocus()
 
   const visible = useMemo(() => {
-    const list = (pages ?? []).filter((page) => !query.trim() || matches(page, query.trim()))
+    const list = (pages ?? []).filter(
+      (page) => (room === 'all' || roomOfPage(page) === room) && (!query.trim() || matches(page, query.trim()))
+    )
     return list.sort((a, b) => b.updatedAt - a.updatedAt)
-  }, [pages, query])
+  }, [pages, query, room])
 
   if (pages && pages.length === 0) {
     return (
@@ -62,6 +68,9 @@ export function KnowledgeView(): JSX.Element {
               </button>
             )}
           </label>
+          <div className={styles.filterRow}>
+            <RoomFilter />
+          </div>
           <ul className={styles.pageList}>
             {visible.map((page) => (
               <PageListItem key={page.slug} page={page} active={page.slug === selected} />
@@ -87,15 +96,14 @@ function PageListItem({ page, active }: { page: WikiPageMeta; active: boolean })
           <time className={styles.muted}>{formatRelative(page.updatedAt, now)}</time>
         </div>
         {page.summary && <div className={styles.pageItemSummary}>{page.summary}</div>}
-        {page.tags.length > 0 && (
-          <div className={styles.tagRow}>
-            {page.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className={styles.tag}>
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className={styles.tagRow}>
+          <RoomChip room={roomOfPage(page)} />
+          {page.tags.slice(0, 3).map((tag) => (
+            <span key={tag} className={styles.tag}>
+              #{tag}
+            </span>
+          ))}
+        </div>
       </button>
     </li>
   )

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { AGENTS, type BroadcastResult } from '@shared/types'
+import type { BroadcastResult } from '@shared/types'
+import { useSnapshot } from '../../state/snapshot'
 import { chat } from '../../state/chat'
 import styles from './BroadcastDialog.module.css'
 
 /**
- * "Broadcast to all agents": write one message, confirm the six recipients, send, then see what happened per agent.
+ * "Broadcast to all agents": write one message, confirm the recipients, send, then see what happened per agent.
  * This is its own channel; it never goes through a private conversation.
  */
 export function BroadcastDialog({ onClose }: { onClose: () => void }): JSX.Element {
@@ -13,6 +14,10 @@ export function BroadcastDialog({ onClose }: { onClose: () => void }): JSX.Eleme
   const [result, setResult] = useState<BroadcastResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const field = useRef<HTMLTextAreaElement>(null)
+  // Same rule as the engine: every agent except room agents that are switched off.
+  const { agentDefs } = useSnapshot().settings
+  const AGENTS = agentDefs.filter((d) => d.kind !== 'room' || d.enabled)
+  const nameOf = (id: string): string => agentDefs.find((d) => d.id === id)?.name ?? id
 
   useEffect(() => field.current?.focus(), [])
 
@@ -20,7 +25,7 @@ export function BroadcastDialog({ onClose }: { onClose: () => void }): JSX.Eleme
     setSending(true)
     setError(null)
     try {
-      setResult(await chat.broadcast(text))
+      setResult(await chat.broadcast(text, AGENTS.map((a) => a.id)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -56,7 +61,7 @@ export function BroadcastDialog({ onClose }: { onClose: () => void }): JSX.Eleme
             <ul className={styles.recipients} aria-label="Delivery results">
               {result.deliveries.map((d) => (
                 <li key={d.agent} className={styles.recipient}>
-                  <span className={styles.who}>{AGENTS.find((a) => a.id === d.agent)?.name}</span>
+                  <span className={styles.who}>{nameOf(d.agent)}</span>
                   <span className={d.status === 'delivered' ? styles.ok : styles.bad}>
                     {d.status === 'delivered' ? 'Delivered' : `Failed${d.error ? `: ${d.error}` : ''}`}
                   </span>

@@ -1,7 +1,8 @@
 import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
-import { AGENTS, IPC, type AgentId, type SettingsUpdate } from '@shared/types'
+import { IPC, type RoomKind, type SettingsUpdate, type SourceOrigin } from '@shared/types'
 import type { Engine } from './engine'
+import { parseAgentDefList } from './settings'
 
 /**
  * Registers a handler for every IPC channel in the shared contract. Handlers wait for the
@@ -13,13 +14,18 @@ export function registerIpc(ready: Promise<Engine>): void {
   }
 
   handle(IPC.getSnapshot, (engine) => engine.getSnapshot())
-  handle(IPC.addUrl, (engine, url: string) => engine.addUrl(asString(url, 'url')))
-  handle(IPC.addFiles, (engine, paths: string[]) => engine.addFiles(asStringList(paths)))
-  handle(IPC.addNote, (engine, text: string) => engine.addNote(asString(text, 'note')))
+  handle(IPC.addUrl, (engine, url: string, origin?: unknown) => engine.addUrl(asString(url, 'url'), asOrigin(origin)))
+  handle(IPC.addFiles, (engine, paths: string[], origin?: unknown) => engine.addFiles(asStringList(paths), asOrigin(origin)))
+  handle(IPC.addNote, (engine, text: string, origin?: unknown) => engine.addNote(asString(text, 'note'), asOrigin(origin)))
+  handle(IPC.agentRun, (engine, agentId: string, instruction?: unknown) =>
+    engine.runAgent(asAgentId(engine, agentId), instruction === undefined || instruction === null ? undefined : asString(instruction, 'instruction')))
+  handle(IPC.getAgentMemory, (engine, agentId: string) => engine.getAgentMemory(asAgentId(engine, agentId)))
+  handle(IPC.setAgentMemory, (engine, agentId: string, memory: string) => engine.setAgentMemory(asAgentId(engine, agentId), asString(memory, 'memory')))
+  handle(IPC.agentRuns, (engine) => engine.agentRuns())
   handle(IPC.retrySource, (engine, id: string) => engine.retrySource(asString(id, 'source id')))
   handle(IPC.ask, (engine, question: string) => engine.ask(asString(question, 'question')))
-  handle(IPC.chatSend, (engine, agentId: string, text: string) => engine.chat.send(asAgentId(agentId), asString(text, 'message')))
-  handle(IPC.chatHistory, (engine, agentId: string) => engine.chat.history(asAgentId(agentId)))
+  handle(IPC.chatSend, (engine, agentId: string, text: string) => engine.chat.send(asAgentId(engine, agentId), asString(text, 'message')))
+  handle(IPC.chatHistory, (engine, agentId: string) => engine.chat.history(asAgentId(engine, agentId)))
   handle(IPC.broadcastSend, (engine, text: string) => engine.chat.broadcast(asString(text, 'message')))
   handle(IPC.runJanitor, (engine) => engine.runJanitor())
   handle(IPC.listPages, (engine) => engine.listPages())
@@ -76,10 +82,24 @@ function asString(value: unknown, what: string): string {
   return value
 }
 
-function asAgentId(value: unknown): AgentId {
-  const agent = AGENTS.find((a) => a.id === value)
-  if (!agent) throw new Error('Unknown agent')
-  return agent.id
+/** An id of an agent that exists in the current settings. */
+function asAgentId(engine: Engine, value: unknown): string {
+  if (typeof value !== 'string' || !engine.getSettings().agentDefs.some((a) => a.id === value)) throw new Error('Unknown agent')
+  return value
+}
+
+const ROOMS: RoomKind[] = ['brain', 'office', 'personal']
+const ORIGIN_KINDS: SourceOrigin['kind'][] = ['manual', 'agent']
+
+/** An optional origin from the renderer: the room must be one of the three rooms. Anything else is rejected. */
+function asOrigin(value: unknown): SourceOrigin | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'object') throw new Error('Expected a source origin')
+  const { room, agentId, kind } = value as Record<string, unknown>
+  if (typeof room !== 'string' || !ROOMS.includes(room as RoomKind)) throw new Error('Unknown room')
+  const origin: SourceOrigin = { room: room as RoomKind, kind: ORIGIN_KINDS.includes(kind as SourceOrigin['kind']) ? (kind as SourceOrigin['kind']) : 'manual' }
+  if (agentId !== undefined) origin.agentId = asString(agentId, 'agent id')
+  return origin
 }
 
 function asStringList(value: unknown): string[] {
@@ -94,6 +114,8 @@ function asSettingsUpdate(value: unknown): SettingsUpdate {
     const field = (value as Record<string, unknown>)[key]
     if (field !== undefined) update[key] = asString(field, key)
   }
+  const agents = (value as Record<string, unknown>).agentDefs
+  if (agents !== undefined) update.agentDefs = parseAgentDefList(agents)
   const provider = (value as Record<string, unknown>).providerId
   if (provider !== undefined) {
     const providers = ['anthropic', 'claude-code', 'openai', 'openrouter', 'codex', 'opencode', 'antigravity', 'kilocode', 'acp']

@@ -3,17 +3,18 @@
 // The leg waypoints were planned by `node scripts/routes.mjs --plan` around the obstacles below and are
 // checked by `node scripts/routes.mjs` (run it after moving furniture).
 import type { AgentId } from '@shared/types'
-import { BOOKSHELVES, DESKS, LOUNGE, MEETING_ROOM, PLANTS, ROOM, SEAT_OFFSET, type Vec2 } from './layout'
+import { ALL_DESKS, BOOKSHELVES, LOUNGE, MEETING_ROOM, PLANTS, ROOM, SEAT_OFFSET, type DeskSpot, type Vec2 } from './layout'
 
 /** Floor position of the seat at a desk (the desks all face -x, so the sitter's back is towards +x). */
-export function seatOf(desk: (typeof DESKS)[number]): [number, number] {
+export function seatOf(desk: DeskSpot): [number, number] {
   const s = Math.sin(desk.rotation)
   const c = Math.cos(desk.rotation)
   const shift = desk.seat ?? 0
   return [desk.at[0] + c * SEAT_OFFSET + s * shift, desk.at[1] - s * SEAT_OFFSET + c * shift]
 }
 
-export const SEATS = Object.fromEntries(DESKS.filter((d) => d.agent).map((d) => [d.agent, seatOf(d)])) as Record<AgentId, Vec2>
+/** Seat of every agent with a desk, in any room (world coordinates). */
+export const SEATS = Object.fromEntries(ALL_DESKS.filter((d) => d.agent).map((d) => [d.agent, seatOf(d)])) as Record<AgentId, Vec2>
 
 /** Where a visitor stands to talk to an agent: in the aisle behind its chair, about a metre from the seat. */
 export const AISLES: Record<AgentId, Vec2> = {
@@ -61,7 +62,7 @@ export type Obstacle =
 /** Everything on the floor an agent must not walk into (before the body radius is added). */
 export function obstacles(): Obstacle[] {
   const list: Obstacle[] = []
-  for (const d of DESKS) {
+  for (const d of ALL_DESKS) {
     const half = (d.length ?? 1.8) / 2
     list.push({ kind: 'rect', x0: d.at[0] - 0.46, z0: d.at[1] - half, x1: d.at[0] + 0.46, z1: d.at[1] + half })
     const [sx, sz] = seatOf(d)

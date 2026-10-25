@@ -1,4 +1,7 @@
-import type { ComponentType } from 'react'
+import { useEffect, useRef, type ComponentType } from 'react'
+import { useSnapshot } from '../../state/snapshot'
+import { chat } from '../../state/chat'
+import { AgentDrawer } from './AgentDrawer'
 import { useNavigation, type ViewId } from '../../state/navigation'
 import { TopBar } from './TopBar'
 import { Sidebar } from './Sidebar'
@@ -30,6 +33,14 @@ const VIEWS: Record<Exclude<ViewId, 'office'>, ComponentType> = {
 export function Shell(): JSX.Element {
   const view = useNavigation((s) => s.view)
   const Overlay = view === 'office' ? null : VIEWS[view]
+  const knowledgeDir = useSnapshot().settings.knowledgeDir
+  const firstDir = useRef(knowledgeDir)
+  // Chat histories live in the knowledge folder: a folder switch reloads them.
+  useEffect(() => {
+    if (firstDir.current === knowledgeDir) return
+    firstDir.current = knowledgeDir
+    chat.reset()
+  }, [knowledgeDir])
   return (
     <div className={styles.shell}>
       <TopBar />
@@ -39,6 +50,7 @@ export function Shell(): JSX.Element {
           <OfficeView active={view === 'office'} />
         </div>
         {Overlay && <Overlay key={view} />}
+        <AgentDrawer />
       </main>
       <RightRail />
       <BottomBar />

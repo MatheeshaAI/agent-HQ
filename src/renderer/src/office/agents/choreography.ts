@@ -50,7 +50,8 @@ export class Choreographer {
   /** `onSpeaking` lets the scene show the speaking cue (voice bars) while the visitor talks. */
   constructor(private onSpeaking: (agent: AgentId, speaking: boolean) => void) {
     const pose = (id: AgentId): Pose => ({ active: false, x: SEATS[id][0], z: SEATS[id][1], yaw: SEATED_YAW, stand: 0, mode: 'walk' })
-    this.poses = { pip: pose('pip'), sage: pose('sage'), rex: pose('rex'), nova: pose('nova'), axel: pose('axel'), muse: pose('muse') }
+    // Every agent with a desk gets a pose; only the pipeline stages ever leave their chairs.
+    this.poses = Object.fromEntries(Object.keys(SEATS).map((id) => [id, pose(id)])) as Record<AgentId, Pose>
   }
 
   get busy(): boolean {

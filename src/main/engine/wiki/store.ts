@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { GraphData, WikiPageContent, WikiPageMeta } from '@shared/types'
+import type { GraphData, RoomKind, WikiPageContent, WikiPageMeta } from '@shared/types'
 import { isHiddenName, writeFileAtomic } from '../util/fsx'
 import { Serial } from '../util/serial'
 import { slugify } from '../util/text'
@@ -14,6 +14,7 @@ interface PageRecord {
   tags: string[]
   sources: string[]
   summary: string
+  room?: RoomKind
   updatedAt: number
   /** Raw [[wikilink]] targets as written */
   linkTargets: string[]
@@ -30,6 +31,8 @@ export interface PageWrite {
   tags: string[]
   sources: string[]
   summary: string
+  /** Room the page is written for (front matter `room`) */
+  room?: RoomKind
   /** Markdown body, without front matter */
   body: string
   updatedAt: number
@@ -117,7 +120,8 @@ export class WikiStore {
         tags: page.tags,
         sources: page.sources,
         updated: new Date(page.updatedAt).toISOString(),
-        summary: page.summary
+        summary: page.summary,
+        ...(page.room ? { room: page.room } : {})
       }
       const path = join(this.dir, `${slug}.md`)
       const markdown = renderPage(frontmatter, page.body, this.pages.get(slug)?.extra)
@@ -209,6 +213,7 @@ export class WikiStore {
         sources: record.sources,
         tags: record.tags,
         summary: record.summary,
+        ...(record.room ? { room: record.room } : {}),
         updatedAt: record.updatedAt
       })
     }
@@ -234,6 +239,7 @@ function toRecord(slug: string, path: string, markdown: string, fallbackUpdatedA
     tags: frontmatter.tags ?? [],
     sources: frontmatter.sources ?? [],
     summary: frontmatter.summary ?? '',
+    room: frontmatter.room,
     updatedAt: Number.isFinite(updated) ? updated : Math.round(fallbackUpdatedAt),
     linkTargets: extractWikilinks(body),
     markdown,
